@@ -46,11 +46,11 @@ mod_chat_ui <- function(id) {
           placeholder = "Ask about your calendar...",
           width = "100%"
         ),
-        htmltools::tags$button(
-          type = "button",
-          class = "btn btn-primary",
-          id = ns("send_message"),
-          bsicons::bs_icon("send")
+        shiny::actionButton(
+          ns("send_message"),
+          label = NULL,
+          icon = bsicons::bs_icon("send"),
+          class = "btn-primary"
         )
       ),
       htmltools::div(
@@ -89,9 +89,12 @@ mod_chat_server <- function(id, events, calendars, selected_date) {
     # Chat history
     chat_history <- shiny::reactiveVal(list())
 
-    # Initialize chat with ellmer
+    # Initialize chat with ellmer (may fail if API key not configured)
     chat <- shiny::reactive({
-      create_calendar_chat(events(), calendars())
+      tryCatch(
+        create_calendar_chat(events(), calendars()),
+        error = function(e) NULL
+      )
     })
 
     # Render chat messages

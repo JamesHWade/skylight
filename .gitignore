@@ -1,7 +1,66 @@
+# R Session Files
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
+.Rapp.history
+
+# R Package Build
+*.tar.gz
+*.Rcheck/
+src/*.o
+src/*.so
+src/*.dll
+
+# Secrets and Credentials
+.Renviron
 .httr-oauth
+*.json
+!inst/app/www/manifest.json
+
+# Database
+*.duckdb
+*.duckdb.wal
+data/*.duckdb
+
+# Cache
+.cache/
+__pycache__/
+
+# OS Files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Quarto
 .quarto
+
+# renv
+renv/library/
+renv/staging/
+renv/python/
+renv/sandbox/
+
+# Documentation
+docs/
+doc/
+
+# Test Artifacts
+tests/testthat/_snaps/
+coverage.html
+*.gcov
+*.gcda
+*.gcno
+
+# Node (if using any JS tooling)
+node_modules/
+
+# Logs
+*.log
+logs/

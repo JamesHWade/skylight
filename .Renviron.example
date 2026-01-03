@@ -1,0 +1,48 @@
+# Skylight Calendar Environment Variables
+# Copy this file to .Renviron and fill in your values
+
+# =============================================================================
+# Google OAuth Credentials (Required)
+# =============================================================================
+# Get these from Google Cloud Console:
+# 1. Go to https://console.cloud.google.com/
+# 2. Create a new project or select existing
+# 3. Enable the Google Calendar API
+# 4. Go to APIs & Services > Credentials
+# 5. Create OAuth 2.0 Client ID (Web application type)
+# 6. Add http://localhost:8080 as authorized redirect URI
+
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+
+# =============================================================================
+# Anthropic API Key (Required for AI Chat)
+# =============================================================================
+# Get this from https://console.anthropic.com/
+
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# =============================================================================
+# OpenWeatherMap API Key (Optional - for weather widget)
+# =============================================================================
+# Get this from https://openweathermap.org/api
+
+OPENWEATHER_API_KEY=your_openweather_api_key_here
+
+# Default weather location (city, country code)
+WEATHER_LOCATION=Midland, MI, US
+
+# =============================================================================
+# Database Configuration (Optional)
+# =============================================================================
+# By default, DuckDB stores data in the user's data directory
+# Override with a custom path if needed
+
+# SKYLIGHT_DB_PATH=/path/to/skylight.duckdb
+
+# =============================================================================
+# Cache Configuration (Optional)
+# =============================================================================
+# Override the default token cache directory if needed
+
+# SKYLIGHT_CACHE_DIR=/path/to/cache

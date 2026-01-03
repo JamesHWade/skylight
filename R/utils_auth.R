@@ -38,7 +38,7 @@ calendar_auth <- function(email = NULL, cache = TRUE, use_oob = FALSE) {
 
   # Define scopes
   scopes <- c(
-    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/userinfo.email"
   )
 
@@ -102,8 +102,20 @@ calendar_deauth <- function() {
 #' @examples
 #' is_authenticated()
 is_authenticated <- function() {
-  token <- get_token()
-  !is.null(token)
+ # If credentials aren't configured, we're not authenticated
+  client_id <- Sys.getenv("GOOGLE_CLIENT_ID")
+  client_secret <- Sys.getenv("GOOGLE_CLIENT_SECRET")
+
+  if (nchar(client_id) == 0 || nchar(client_secret) == 0) {
+    return(FALSE)
+  }
+
+  tryCatch({
+    token <- get_token()
+    !is.null(token)
+  }, error = function(e) {
+    FALSE
+  })
 }
 
 #' Get Current User Email
@@ -202,7 +214,7 @@ refresh_token <- function(token) {
     name = "skylight-calendar"
   )
 
-  httr2::oauth_token_refresh(app, token$refresh_token)
+  httr2::oauth_flow_refresh(app, refresh_token = token$refresh_token)
 }
 
 #' Get Token Cache Directory

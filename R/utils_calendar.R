@@ -158,18 +158,19 @@ fetch_calendar_events <- function(token, calendar_id, time_min, time_max) {
   # Parse events
   purrr::map_dfr(data$items, function(event) {
     # Handle all-day vs timed events
-    is_all_day <- !is.null(event$start$date)
+    # Use [[ instead of $ to avoid partial matching (date vs dateTime)
+    is_all_day <- !is.null(event$start[["date"]])
 
     start_time <- if (is_all_day) {
-      as.POSIXct(event$start$date)
+      lubridate::ymd(event$start[["date"]], tz = "UTC")
     } else {
-      as.POSIXct(event$start$dateTime)
+      lubridate::ymd_hms(event$start[["dateTime"]])
     }
 
     end_time <- if (is_all_day) {
-      as.POSIXct(event$end$date)
+      lubridate::ymd(event$end[["date"]], tz = "UTC")
     } else {
-      as.POSIXct(event$end$dateTime)
+      lubridate::ymd_hms(event$end[["dateTime"]])
     }
 
     data.frame(

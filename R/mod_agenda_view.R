@@ -186,7 +186,7 @@ agenda_event_card <- function(event) {
         htmltools::span(class = "agenda-event-title", event$title),
         time_display
       ),
-      if (!is.null(event$location) && nchar(event$location) > 0) {
+      if (!is.null(event$location) && !is.na(event$location) && nchar(event$location) > 0) {
         htmltools::div(
           class = "agenda-event-location text-muted",
           bsicons::bs_icon("geo-alt", size = "0.8em"),

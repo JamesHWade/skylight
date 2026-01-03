@@ -243,7 +243,7 @@ event_card_detailed <- function(event) {
       htmltools::span(class = "event-title", event$title),
       htmltools::span(class = "event-time-range", paste(start_time, "-", end_time))
     ),
-    if (!is.null(event$location) && nchar(event$location) > 0) {
+    if (!is.null(event$location) && !is.na(event$location) && nchar(event$location) > 0) {
       htmltools::div(
         class = "event-location",
         bsicons::bs_icon("geo-alt", size = "0.8em"),
@@ -251,7 +251,7 @@ event_card_detailed <- function(event) {
         event$location
       )
     },
-    if (!is.null(event$description) && nchar(event$description) > 0) {
+    if (!is.null(event$description) && !is.na(event$description) && nchar(event$description) > 0) {
       htmltools::div(
         class = "event-description text-muted",
         substr(event$description, 1, 100),

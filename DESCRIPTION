@@ -12,9 +12,12 @@ BugReports: https://github.com/youruser/skylight/issues
 Depends:
     R (>= 4.1.0)
 Imports:
+    bsicons,
     bslib (>= 0.6.0),
     cachem,
+    commonmark,
     DBI,
+    digest,
     duckdb,
     ellmer,
     gargle,
@@ -24,8 +27,11 @@ Imports:
     jsonlite,
     lubridate,
     purrr,
+    rappdirs,
     rlang,
+    sass,
     shiny (>= 1.8.0),
+    shinyjs,
     shinychat,
     yaml
 Suggests:

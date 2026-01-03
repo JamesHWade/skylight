@@ -1,0 +1,61 @@
+meta:
+  name: Skylight Calendar
+  description: A beautiful family calendar display
+
+color:
+  palette:
+    white: "#FFFFFF"
+    warm-white: "#FDF8F3"
+    charcoal: "#2D3436"
+    slate: "#636E72"
+    soft-blue: "#74B9FF"
+    deep-blue: "#0984E3"
+    coral: "#FF7675"
+    rose: "#FD79A8"
+    mint: "#55EFC4"
+    teal: "#00CEC9"
+    lavender: "#A29BFE"
+    purple: "#6C5CE7"
+    sunshine: "#FFEAA7"
+    orange: "#FDCB6E"
+
+  # Using deeper colors for better contrast (WCAG 4.5:1)
+  primary: "#0077B6"
+  secondary: "#E63946"
+  success: "#2D9D78"
+  warning: "#E9C46A"
+  danger: "#E63946"
+  info: "#7B68EE"
+  background: "#FDF8F3"
+  foreground: "#2D3436"
+
+typography:
+  fonts:
+    - family: Inter
+      source: google
+      weight: [400, 500, 600, 700]
+    - family: DM Sans
+      source: google
+      weight: [500, 600, 700]
+
+  base:
+    family: Inter
+    size: 16px
+    line-height: 1.5
+
+  headings:
+    family: DM Sans
+    weight: 600
+    line-height: 1.2
+
+defaults:
+  shiny:
+    theme:
+      version: 5
+      preset: shiny
+      bootswatch: null
+
+  bootstrap:
+    card-border-radius: 12px
+    card-cap-bg: transparent
+    btn-border-radius: 8px

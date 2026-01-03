@@ -23,9 +23,11 @@ run_app <- function(
     launch_browser = interactive(),
     ...
 ) {
-  # Initialize database on startup
+  # Suppress bslib color contrast warnings (informational only)
+  options(bslib.color_contrast_warnings = FALSE)
 
-db_init()
+  # Initialize database on startup
+  db_init()
 
   # Build the Shiny app object
   app <- shinyApp(
@@ -74,38 +76,40 @@ app_sys <- function(...) {
 add_external_resources <- function() {
   www_path <- app_sys("app/www")
 
-  tagList(
+  # Add resource path for www directory (must be done outside tagList)
+  if (dir.exists(www_path)) {
+    shiny::addResourcePath("www", www_path)
+  }
+
+  htmltools::tagList(
+    # Initialize shinyjs
+    shinyjs::useShinyjs(),
+
     # Add custom CSS if it exists
     if (file.exists(file.path(www_path, "styles.css"))) {
-      tags$head(
-        tags$link(rel = "stylesheet", type = "text/css", href = "www/styles.css")
+      htmltools::tags$head(
+        htmltools::tags$link(rel = "stylesheet", type = "text/css", href = "www/styles.css")
       )
     },
     # Add custom JS if it exists
     if (file.exists(file.path(www_path, "custom.js"))) {
-      tags$head(
-        tags$script(src = "www/custom.js")
+      htmltools::tags$head(
+        htmltools::tags$script(src = "www/custom.js")
       )
     },
-    # Add favicon
-    tags$head(
-      tags$link(rel = "icon", type = "image/x-icon", href = "www/favicon.ico")
-    ),
     # PWA manifest for iPad home screen
-    tags$head(
-      tags$link(rel = "manifest", href = "www/manifest.json"),
-      tags$meta(name = "apple-mobile-web-app-capable", content = "yes"),
-      tags$meta(name = "apple-mobile-web-app-status-bar-style", content = "default"),
-      tags$meta(name = "apple-mobile-web-app-title", content = "Skylight")
+    htmltools::tags$head(
+      htmltools::tags$link(rel = "manifest", href = "www/manifest.json"),
+      htmltools::tags$meta(name = "apple-mobile-web-app-capable", content = "yes"),
+      htmltools::tags$meta(name = "apple-mobile-web-app-status-bar-style", content = "default"),
+      htmltools::tags$meta(name = "apple-mobile-web-app-title", content = "Skylight")
     ),
     # Viewport for mobile
-    tags$head(
-      tags$meta(
+    htmltools::tags$head(
+      htmltools::tags$meta(
         name = "viewport",
         content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
       )
-    ),
-    # Add resource path for www directory
-    shiny::addResourcePath("www", www_path)
+    )
   )
 }

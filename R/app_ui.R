@@ -6,26 +6,34 @@
 #'
 #' @keywords internal
 app_ui <- function() {
-  page_navbar(
+ brand <- load_brand()
+
+  bslib::page_navbar(
     id = "main_nav",
-    title = tags$span(
-      tags$img(
+    title = htmltools::tags$span(
+      class = "d-flex align-items-center",
+      htmltools::tags$img(
         src = "www/logo.svg",
-        height = "30px",
-        class = "me-2",
-        .noWS = "after"
+        height = "28px",
+        class = "me-2"
       ),
-      "Skylight"
+      htmltools::tags$span(
+        class = "brand-text",
+        "Skylight"
+      )
     ),
     theme = get_theme(),
     fillable = TRUE,
-    bg = "primary",
+    navbar_options = bslib::navbar_options(
+      bg = brand$color$primary %||% "#0077B6",
+      collapsible = FALSE
+    ),
 
     # Add external resources (CSS, JS, PWA)
     header = add_external_resources(),
 
     # Week View (default)
-    nav_panel(
+    bslib::nav_panel(
       title = "Week",
       value = "week",
       icon = bsicons::bs_icon("calendar-week"),
@@ -33,7 +41,7 @@ app_ui <- function() {
     ),
 
     # Day View
-    nav_panel(
+    bslib::nav_panel(
       title = "Day",
       value = "day",
       icon = bsicons::bs_icon("calendar-day"),
@@ -41,7 +49,7 @@ app_ui <- function() {
     ),
 
     # Agenda View
-    nav_panel(
+    bslib::nav_panel(
       title = "Agenda",
       value = "agenda",
       icon = bsicons::bs_icon("list-task"),
@@ -49,52 +57,52 @@ app_ui <- function() {
     ),
 
     # Spacer to push remaining items right
-    nav_spacer(),
+    bslib::nav_spacer(),
 
     # Clock widget in navbar
-    nav_item(
+    bslib::nav_item(
       mod_clock_ui("clock")
     ),
 
     # Chat sidebar toggle
-    nav_item(
-      actionButton(
-        "toggle_chat",
-        label = NULL,
-        icon = bsicons::bs_icon("chat-dots"),
-        class = "btn-outline-light"
+    bslib::nav_item(
+      htmltools::tags$button(
+        id = "toggle_chat",
+        type = "button",
+        class = "btn btn-outline-light btn-sm nav-btn",
+        bsicons::bs_icon("chat-dots")
       )
     ),
 
-    # Settings menu
-    nav_menu(
-      title = "Settings",
+    # Settings menu with dark mode inside
+    bslib::nav_menu(
+      title = NULL,
       icon = bsicons::bs_icon("gear"),
       align = "right",
-      nav_item(
+      bslib::nav_item(
         mod_auth_ui("auth")
       ),
       "----",
-      nav_item(
-        actionButton(
-          "refresh_calendar",
-          "Refresh Calendar",
-          icon = bsicons::bs_icon("arrow-clockwise"),
-          class = "btn-sm btn-outline-secondary w-100"
+      bslib::nav_item(
+        htmltools::div(
+          class = "d-flex align-items-center justify-content-between px-2 py-1",
+          htmltools::span("Dark Mode"),
+          bslib::input_dark_mode(id = "dark_mode", mode = "light")
         )
       ),
-      nav_item(
-        actionButton(
-          "toggle_dark_mode",
-          "Toggle Dark Mode",
-          icon = bsicons::bs_icon("moon-stars"),
+      "----",
+      bslib::nav_item(
+        shiny::actionButton(
+          "refresh_calendar",
+          "Refresh",
+          icon = bsicons::bs_icon("arrow-clockwise"),
           class = "btn-sm btn-outline-secondary w-100"
         )
       )
     ),
 
     # Footer with chat panel (collapsible sidebar)
-    footer = div(
+    footer = htmltools::div(
       id = "chat_container",
       class = "chat-sidebar collapsed",
       mod_chat_ui("chat")
@@ -112,17 +120,17 @@ app_ui <- function() {
 get_theme <- function() {
   brand <- load_brand()
 
-  bs_theme(
+ theme <- bslib::bs_theme(
     version = 5,
     preset = "shiny",
 
     # Colors from brand.yml
     primary = brand$color$primary %||% "#74B9FF",
     secondary = brand$color$secondary %||% "#FF7675",
-    success = brand$color$palette$mint %||% "#55EFC4",
-    warning = brand$color$palette$sunshine %||% "#FFEAA7",
-    danger = brand$color$palette$coral %||% "#FF7675",
-    info = brand$color$palette$lavender %||% "#A29BFE",
+    success = brand$color$success %||% "#55EFC4",
+    warning = brand$color$warning %||% "#FFEAA7",
+    danger = brand$color$danger %||% "#FF7675",
+    info = brand$color$info %||% "#A29BFE",
 
     # Background and foreground
     bg = brand$color$background %||% "#FDF8F3",
@@ -141,11 +149,16 @@ get_theme <- function() {
     "card-border-radius" = "12px",
     "card-cap-bg" = "transparent",
     "navbar-padding-y" = "0.75rem"
-  ) |>
-    # Add custom CSS rules
-    bslib::bs_add_rules(
-      sass::sass_file(app_sys("app/www/styles.scss"))
-    )
+  )
+
+  # Add custom CSS rules if CSS file exists
+  css_path <- app_sys("app/www/styles.css")
+  if (file.exists(css_path)) {
+    css_content <- paste(readLines(css_path), collapse = "\n")
+    theme <- bslib::bs_add_rules(theme, css_content)
+  }
+
+  theme
 }
 
 #' Null-coalescing operator

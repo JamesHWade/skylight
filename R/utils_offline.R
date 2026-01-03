@@ -9,12 +9,10 @@ NULL
 #' Package Environment for Offline State
 #'
 #' @keywords internal
-if (!exists("offline_env", envir = asNamespace("skylight"), inherits = FALSE)) {
-  offline_env <- new.env(parent = emptyenv())
-  offline_env$is_offline <- FALSE
-  offline_env$last_online <- Sys.time()
-  offline_env$offline_since <- NULL
-}
+offline_env <- new.env(parent = emptyenv())
+offline_env$is_offline <- FALSE
+offline_env$last_online <- Sys.time()
+offline_env$offline_since <- NULL
 
 #' Check Network Connectivity
 #'

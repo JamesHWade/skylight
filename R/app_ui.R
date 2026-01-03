@@ -109,11 +109,15 @@ app_ui <- function() {
       )
     ),
 
-    # Footer with chat panel (collapsible sidebar)
-    footer = htmltools::div(
-      id = "chat_container",
-      class = "chat-sidebar collapsed",
-      mod_chat_ui("chat")
+    # Footer with chat panel (collapsible sidebar) and offline indicator
+    footer = htmltools::tagList(
+      htmltools::div(
+        id = "chat_container",
+        class = "chat-sidebar collapsed",
+        mod_chat_ui("chat")
+      ),
+      # Offline indicator banner
+      offline_indicator_ui("offline")
     )
   )
 }

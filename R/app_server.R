@@ -19,17 +19,64 @@ app_server <- function(input, output, session) {
 
   # Core reactive values
   selected_date <- shiny::reactiveVal(Sys.Date())
+  refresh_trigger <- shiny::reactiveVal(0)
 
   # Auth module
   auth_status <- mod_auth_server("auth")
 
-  # Simple event/calendar reactives for demo mode
+  # Offline indicator module
+  offline_status <- offline_indicator_server("offline")
+
+  # Events reactive with offline resilience
   events <- shiny::reactive({
-    generate_sample_events()
+    # React to manual refresh
+    refresh_trigger()
+
+    if (demo_mode) {
+      # Demo mode uses sample events
+      generate_sample_events()
+    } else {
+      # Authenticated mode with offline fallback
+      result <- fetch_events_resilient(
+        start = selected_date() - 7,
+        end = selected_date() + 30
+      )
+
+      # Show notification if using cached data
+      if (result$source == "cache_fallback") {
+        shiny::showNotification(
+          paste("Showing cached data.", result$error),
+          type = "warning",
+          duration = 5
+        )
+      }
+
+      result$events
+    }
   })
 
+  # Calendars reactive with offline resilience
   calendars <- shiny::reactive({
-    generate_sample_calendars()
+    if (demo_mode) {
+      generate_sample_calendars()
+    } else {
+      tryCatch({
+        get_calendars()
+      }, error = function(e) {
+        # Return cached or empty calendars on error
+        generate_sample_calendars()  # Fallback to demo calendars
+      })
+    }
+  })
+
+  # Handle manual refresh button
+  shiny::observeEvent(input$refresh_calendar, {
+    refresh_trigger(refresh_trigger() + 1)
+    shiny::showNotification(
+      "Refreshing calendar...",
+      type = "message",
+      duration = 2
+    )
   })
 
   # View modules

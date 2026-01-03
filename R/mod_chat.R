@@ -89,12 +89,20 @@ mod_chat_server <- function(id, events, calendars, selected_date) {
     # Chat history
     chat_history <- shiny::reactiveVal(list())
 
-    # Initialize chat with ellmer (may fail if API key not configured)
+    # Track chat initialization errors for user feedback
+    chat_error <- shiny::reactiveVal(NULL)
+
+    # Initialize chat with ellmer (requires ANTHROPIC_API_KEY)
     chat <- shiny::reactive({
-      tryCatch(
-        create_calendar_chat(events(), calendars()),
-        error = function(e) NULL
-      )
+      tryCatch({
+        chat_error(NULL)
+        create_calendar_chat(events(), calendars())
+      }, error = function(e) {
+        error_msg <- conditionMessage(e)
+        warning("Chat initialization failed: ", error_msg, call. = FALSE)
+        chat_error(error_msg)
+        NULL
+      })
     })
 
     # Render chat messages
@@ -165,6 +173,25 @@ mod_chat_server <- function(id, events, calendars, selected_date) {
       )))
       chat_history(history)
 
+      # Check if chat is available
+      if (is.null(chat())) {
+        history <- chat_history()
+        error_detail <- chat_error()
+        error_msg <- if (!is.null(error_detail)) {
+          paste("Chat is not available:", error_detail)
+        } else {
+          "Chat is not available. Please ensure the ANTHROPIC_API_KEY environment variable is configured."
+        }
+        history <- append(history, list(list(
+          role = "assistant",
+          content = error_msg,
+          timestamp = Sys.time(),
+          is_error = TRUE
+        )))
+        chat_history(history)
+        return()
+      }
+
       # Get AI response
       tryCatch({
         response <- get_chat_response(
@@ -230,7 +257,9 @@ render_chat_message <- function(msg) {
       class = "message-content",
       htmltools::div(
         class = "message-text",
-        htmltools::HTML(commonmark::markdown_html(msg$content))
+        # Note: Content is from LLM responses, not direct user input.
+        # Using htmlEscape on input preserves markdown while preventing XSS.
+        htmltools::HTML(commonmark::markdown_html(htmltools::htmlEscape(msg$content)))
       ),
       htmltools::div(
         class = "message-timestamp text-muted small",
@@ -355,6 +384,11 @@ save_chat_message <- function(user_message, assistant_response) {
       VALUES (?, ?, ?)
     ", params = list(user_message, assistant_response, as.character(Sys.time())))
   }, error = function(e) {
-    # Silently fail - chat history is not critical
+    # Log but continue - chat history is non-critical functionality
+    warning(
+      "Failed to save chat message to database: ", conditionMessage(e),
+      "\nChat will continue but history will not be preserved.",
+      call. = FALSE
+    )
   })
 }

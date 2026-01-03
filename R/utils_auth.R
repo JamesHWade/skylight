@@ -114,6 +114,11 @@ is_authenticated <- function() {
     token <- get_token()
     !is.null(token)
   }, error = function(e) {
+    warning(
+      "Error checking authentication status: ", conditionMessage(e),
+      "\nThis may indicate a corrupted token cache or network issue.",
+      call. = FALSE
+    )
     FALSE
   })
 }

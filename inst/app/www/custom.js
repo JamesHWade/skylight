@@ -289,7 +289,7 @@
     initSkylight();
   }
 
-  // Also run periodic cleanup in case MutationObserver misses something
-  setInterval(removeNavbarToggler, 200);
+  // Note: MutationObserver handles dynamic toggler additions.
+  // No setInterval needed - it would waste CPU cycles.
 
 })();

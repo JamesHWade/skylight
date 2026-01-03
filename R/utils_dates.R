@@ -3,12 +3,11 @@
 #' Formats a date with natural language relative to today.
 #'
 #' @param date A Date object.
-#' @param include_time Logical. Whether to include time if available.
 #'
-#' @return A character string.
+#' @return A character string like "Today", "Tomorrow", or "January 15".
 #'
 #' @keywords internal
-format_relative_date <- function(date, include_time = FALSE) {
+format_relative_date <- function(date) {
   today <- Sys.Date()
   date <- as.Date(date)
   diff <- as.numeric(date - today)
@@ -188,9 +187,10 @@ is_current_month <- function(date, reference = Sys.Date()) {
 #'
 #' Attempts to parse natural language date references.
 #'
-#' @param text Character string with date reference.
+#' @param text Character string with date reference (e.g., "today", "tomorrow",
+#'   "monday", or standard date formats).
 #'
-#' @return A Date object, or NULL if parsing fails.
+#' @return A Date or POSIXct object on success, or NULL if parsing fails.
 #'
 #' @keywords internal
 parse_natural_date <- function(text) {

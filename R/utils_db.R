@@ -151,11 +151,21 @@ db_execute <- function(statement, params = NULL) {
 #'
 #' @keywords internal
 db_save_setting <- function(key, value) {
-  value_json <- jsonlite::toJSON(value, auto_unbox = TRUE)
+  value_json <- tryCatch(
+    jsonlite::toJSON(value, auto_unbox = TRUE),
+    error = function(e) {
+      stop("Cannot save setting '", key, "': value is not JSON-serializable. ",
+           "Error: ", conditionMessage(e), call. = FALSE)
+    }
+  )
 
+  # DuckDB uses ON CONFLICT syntax (not INSERT OR REPLACE like SQLite)
   db_execute("
-    INSERT OR REPLACE INTO settings (key, value, updated_at)
+    INSERT INTO settings (key, value, updated_at)
     VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT (key) DO UPDATE SET
+      value = EXCLUDED.value,
+      updated_at = CURRENT_TIMESTAMP
   ", params = list(key, as.character(value_json)))
 
   invisible(TRUE)
@@ -180,7 +190,14 @@ db_get_setting <- function(key, default = NULL) {
     return(default)
   }
 
-  jsonlite::fromJSON(result$value[1])
+  tryCatch(
+    jsonlite::fromJSON(result$value[1]),
+    error = function(e) {
+      warning("Setting '", key, "' contains invalid JSON. Returning default value.",
+              call. = FALSE)
+      default
+    }
+  )
 }
 
 #' Clear Old Data

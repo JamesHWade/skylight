@@ -98,6 +98,9 @@ app_ui <- function() {
           bslib::input_dark_mode(id = "dark_mode", mode = "light")
         )
       ),
+      bslib::nav_item(
+        mod_auto_dark_mode_ui("auto_dark")
+      ),
       "----",
       bslib::nav_item(
         shiny::actionButton(

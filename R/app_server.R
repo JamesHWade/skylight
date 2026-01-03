@@ -27,6 +27,9 @@ app_server <- function(input, output, session) {
   # Offline indicator module
   offline_status <- offline_indicator_server("offline")
 
+  # Auto dark mode module
+  auto_dark_settings <- mod_auto_dark_mode_server("auto_dark")
+
   # Events reactive with offline resilience
   events <- shiny::reactive({
     # React to manual refresh

@@ -205,7 +205,13 @@ agenda_event_card <- function(event) {
       class = "agenda-event-content",
       htmltools::div(
         class = "agenda-event-header",
-        htmltools::span(class = "agenda-event-title", event$title),
+        htmltools::span(
+          class = "agenda-event-title",
+          event$title,
+          if (isTRUE(event$recurring)) {
+            bsicons::bs_icon("arrow-repeat", class = "recurring-icon", size = "0.75em")
+          }
+        ),
         time_display
       ),
       if (!is.null(event$location) && !is.na(event$location) && nchar(event$location) > 0) {

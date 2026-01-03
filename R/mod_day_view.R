@@ -262,7 +262,13 @@ event_card_detailed <- function(event) {
     ),
     htmltools::div(
       class = "event-header",
-      htmltools::span(class = "event-title", event$title),
+      htmltools::span(
+        class = "event-title",
+        event$title,
+        if (isTRUE(event$recurring)) {
+          bsicons::bs_icon("arrow-repeat", class = "recurring-icon", size = "0.75em")
+        }
+      ),
       htmltools::span(class = "event-time-range", paste(start_time, "-", end_time))
     ),
     if (!is.null(event$location) && !is.na(event$location) && nchar(event$location) > 0) {
@@ -321,6 +327,9 @@ event_card_simple <- function(event) {
       color = "white",
       cursor = "pointer"
     ),
-    event$title
+    event$title,
+    if (isTRUE(event$recurring)) {
+      bsicons::bs_icon("arrow-repeat", class = "recurring-icon", size = "0.75em")
+    }
   )
 }

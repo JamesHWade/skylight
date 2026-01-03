@@ -568,6 +568,18 @@
   margin-top: 0.125rem;
 }
 
+/* Recurring Event Icon */
+.recurring-icon {
+  margin-left: 0.35rem;
+  opacity: 0.7;
+  vertical-align: middle;
+}
+
+.event-card.all-day-event .recurring-icon,
+.event-card-simple .recurring-icon {
+  opacity: 0.9;
+}
+
 /* ============================================================================
    Day View
    ============================================================================ */

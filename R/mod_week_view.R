@@ -258,7 +258,13 @@ event_card <- function(event) {
     if (!is.null(start_time)) {
       htmltools::span(class = "event-time", start_time)
     },
-    htmltools::span(class = "event-title", event$title),
+    htmltools::span(
+      class = "event-title",
+      event$title,
+      if (isTRUE(event$recurring)) {
+        bsicons::bs_icon("arrow-repeat", class = "recurring-icon", size = "0.75em")
+      }
+    ),
     if (!is.null(event$location) && !is.na(event$location) && nchar(event$location) > 0) {
       htmltools::span(
         class = "event-location",

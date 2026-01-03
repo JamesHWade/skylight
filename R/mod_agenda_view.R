@@ -171,8 +171,30 @@ agenda_event_card <- function(event) {
     )
   }
 
+  # Store event data as JSON for the modal
+  event_data <- jsonlite::toJSON(
+    list(
+      id = event$id,
+      title = event$title,
+      start = format(as.POSIXct(event$start), "%Y-%m-%dT%H:%M:%S"),
+      end = format(as.POSIXct(event$end), "%Y-%m-%dT%H:%M:%S"),
+      all_day = isTRUE(event$all_day),
+      location = if (!is.na(event$location)) event$location else "",
+      description = if (!is.na(event$description)) event$description else "",
+      calendar_name = event$calendar_name,
+      color = color,
+      recurring = isTRUE(event$recurring)
+    ),
+    auto_unbox = TRUE
+  )
+
   htmltools::div(
     class = "agenda-event-card",
+    `data-event-id` = event$id,
+    `data-event` = event_data,
+    role = "button",
+    tabindex = "0",
+    style = "cursor: pointer;",
     # Color indicator
     htmltools::div(
       class = "agenda-event-color",

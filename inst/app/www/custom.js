@@ -275,6 +275,104 @@
   };
 
   // =========================================================================
+  // Event Details Modal Handler
+  // =========================================================================
+
+  const handleEventCardClick = function(e) {
+    const eventCard = e.target.closest('[data-event-id]');
+    if (!eventCard) return;
+
+    const eventData = eventCard.getAttribute('data-event');
+    if (!eventData) return;
+
+    try {
+      const event = JSON.parse(eventData);
+      showEventModal(event);
+    } catch (err) {
+      console.error('Failed to parse event data:', err);
+    }
+  };
+
+  const showEventModal = function(event) {
+    // Format date/time for display
+    const startDate = new Date(event.start);
+    const endDate = new Date(event.end);
+
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const timeOptions = { hour: 'numeric', minute: '2-digit' };
+
+    const dateStr = startDate.toLocaleDateString('en-US', dateOptions);
+    const startTimeStr = startDate.toLocaleTimeString('en-US', timeOptions);
+    const endTimeStr = endDate.toLocaleTimeString('en-US', timeOptions);
+
+    const timeDisplay = event.all_day
+      ? 'All Day'
+      : startTimeStr + ' - ' + endTimeStr;
+
+    // Build modal content
+    const modal = document.getElementById('event-detail-modal');
+    if (!modal) {
+      console.error('Event detail modal not found');
+      return;
+    }
+
+    // Update modal content
+    const titleEl = modal.querySelector('.event-modal-title');
+    const dateEl = modal.querySelector('.event-modal-date');
+    const timeEl = modal.querySelector('.event-modal-time');
+    const locationEl = modal.querySelector('.event-modal-location');
+    const locationRow = modal.querySelector('.event-modal-location-row');
+    const descriptionEl = modal.querySelector('.event-modal-description');
+    const descriptionRow = modal.querySelector('.event-modal-description-row');
+    const calendarEl = modal.querySelector('.event-modal-calendar');
+    const colorIndicator = modal.querySelector('.event-modal-color');
+
+    if (titleEl) titleEl.textContent = event.title;
+    if (dateEl) dateEl.textContent = dateStr;
+    if (timeEl) timeEl.textContent = timeDisplay;
+    if (colorIndicator) colorIndicator.style.backgroundColor = event.color;
+    if (calendarEl) calendarEl.textContent = event.calendar_name || 'Calendar';
+
+    // Show/hide location
+    if (locationRow) {
+      if (event.location && event.location.trim()) {
+        locationEl.textContent = event.location;
+        locationRow.style.display = '';
+      } else {
+        locationRow.style.display = 'none';
+      }
+    }
+
+    // Show/hide description
+    if (descriptionRow) {
+      if (event.description && event.description.trim()) {
+        descriptionEl.textContent = event.description;
+        descriptionRow.style.display = '';
+      } else {
+        descriptionRow.style.display = 'none';
+      }
+    }
+
+    // Show the modal using Bootstrap
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+  };
+
+  // Event delegation for event cards
+  document.addEventListener('click', handleEventCardClick);
+
+  // Also handle keyboard activation (Enter/Space)
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const eventCard = e.target.closest('[data-event-id]');
+      if (eventCard) {
+        e.preventDefault();
+        handleEventCardClick(e);
+      }
+    }
+  });
+
+  // =========================================================================
   // Initialize on DOM Ready
   // =========================================================================
 

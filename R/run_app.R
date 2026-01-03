@@ -110,6 +110,98 @@ add_external_resources <- function() {
         name = "viewport",
         content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
       )
+    ),
+
+    # Event Details Modal
+    htmltools::tags$div(
+      id = "event-detail-modal",
+      class = "modal fade",
+      tabindex = "-1",
+      `aria-labelledby` = "event-modal-label",
+      `aria-hidden` = "true",
+      htmltools::tags$div(
+        class = "modal-dialog modal-dialog-centered",
+        htmltools::tags$div(
+          class = "modal-content",
+          # Modal Header
+          htmltools::tags$div(
+            class = "modal-header",
+            htmltools::tags$div(
+              class = "event-modal-color",
+              style = "width: 4px; height: 100%; border-radius: 2px; margin-right: 12px;"
+            ),
+            htmltools::tags$div(
+              class = "flex-grow-1",
+              htmltools::tags$h5(
+                class = "modal-title event-modal-title",
+                id = "event-modal-label",
+                "Event Title"
+              ),
+              htmltools::tags$span(
+                class = "event-modal-calendar badge bg-secondary",
+                "Calendar"
+              )
+            ),
+            htmltools::tags$button(
+              type = "button",
+              class = "btn-close",
+              `data-bs-dismiss` = "modal",
+              `aria-label` = "Close"
+            )
+          ),
+          # Modal Body
+          htmltools::tags$div(
+            class = "modal-body",
+            # Date & Time
+            htmltools::tags$div(
+              class = "event-modal-row mb-3",
+              htmltools::tags$div(
+                class = "event-modal-icon",
+                bsicons::bs_icon("calendar-event")
+              ),
+              htmltools::tags$div(
+                class = "event-modal-content",
+                htmltools::tags$div(class = "event-modal-date fw-medium", "Date"),
+                htmltools::tags$div(class = "event-modal-time text-muted", "Time")
+              )
+            ),
+            # Location (conditionally shown)
+            htmltools::tags$div(
+              class = "event-modal-row event-modal-location-row mb-3",
+              htmltools::tags$div(
+                class = "event-modal-icon",
+                bsicons::bs_icon("geo-alt")
+              ),
+              htmltools::tags$div(
+                class = "event-modal-content",
+                htmltools::tags$div(class = "event-modal-location", "Location")
+              )
+            ),
+            # Description (conditionally shown)
+            htmltools::tags$div(
+              class = "event-modal-row event-modal-description-row",
+              htmltools::tags$div(
+                class = "event-modal-icon",
+                bsicons::bs_icon("text-left")
+              ),
+              htmltools::tags$div(
+                class = "event-modal-content",
+                htmltools::tags$div(class = "event-modal-description text-muted", "Description")
+              )
+            )
+          ),
+          # Modal Footer
+          htmltools::tags$div(
+            class = "modal-footer",
+            htmltools::tags$button(
+              type = "button",
+              class = "btn btn-secondary",
+              `data-bs-dismiss` = "modal",
+              "Close"
+            )
+          )
+        )
+      )
     )
   )
 }

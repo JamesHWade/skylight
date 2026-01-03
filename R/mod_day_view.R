@@ -232,11 +232,33 @@ event_card_detailed <- function(event) {
   end_time <- format(as.POSIXct(event$end), "%l:%M %p")
   color <- event$color %||% "#74B9FF"
 
+ # Store event data as JSON for the modal
+  event_data <- jsonlite::toJSON(
+    list(
+      id = event$id,
+      title = event$title,
+      start = format(as.POSIXct(event$start), "%Y-%m-%dT%H:%M:%S"),
+      end = format(as.POSIXct(event$end), "%Y-%m-%dT%H:%M:%S"),
+      all_day = isTRUE(event$all_day),
+      location = if (!is.na(event$location)) event$location else "",
+      description = if (!is.na(event$description)) event$description else "",
+      calendar_name = event$calendar_name,
+      color = color,
+      recurring = isTRUE(event$recurring)
+    ),
+    auto_unbox = TRUE
+  )
+
   htmltools::div(
     class = "event-card-detailed",
+    `data-event-id` = event$id,
+    `data-event` = event_data,
+    role = "button",
+    tabindex = "0",
     style = htmltools::css(
       `border-left-color` = color,
-      `background-color` = paste0(color, "15")
+      `background-color` = paste0(color, "15"),
+      cursor = "pointer"
     ),
     htmltools::div(
       class = "event-header",
@@ -271,11 +293,33 @@ event_card_detailed <- function(event) {
 event_card_simple <- function(event) {
   color <- event$color %||% "#74B9FF"
 
+  # Store event data as JSON for the modal
+  event_data <- jsonlite::toJSON(
+    list(
+      id = event$id,
+      title = event$title,
+      start = format(as.POSIXct(event$start), "%Y-%m-%dT%H:%M:%S"),
+      end = format(as.POSIXct(event$end), "%Y-%m-%dT%H:%M:%S"),
+      all_day = isTRUE(event$all_day),
+      location = if (!is.na(event$location)) event$location else "",
+      description = if (!is.na(event$description)) event$description else "",
+      calendar_name = event$calendar_name,
+      color = color,
+      recurring = isTRUE(event$recurring)
+    ),
+    auto_unbox = TRUE
+  )
+
   htmltools::div(
     class = "event-card-simple",
+    `data-event-id` = event$id,
+    `data-event` = event_data,
+    role = "button",
+    tabindex = "0",
     style = htmltools::css(
       `background-color` = color,
-      color = "white"
+      color = "white",
+      cursor = "pointer"
     ),
     event$title
   )

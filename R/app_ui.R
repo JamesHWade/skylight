@@ -40,6 +40,14 @@ app_ui <- function() {
       mod_week_view_ui("week_view")
     ),
 
+    # Month View
+    bslib::nav_panel(
+      title = "Month",
+      value = "month",
+      icon = bsicons::bs_icon("calendar-month"),
+      mod_month_view_ui("month_view")
+    ),
+
     # Day View
     bslib::nav_panel(
       title = "Day",

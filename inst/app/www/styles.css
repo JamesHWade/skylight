@@ -1332,3 +1332,244 @@ html body .navbar .clock-widget * {
 [data-bs-theme="dark"] #event-detail-modal .modal-footer {
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+/* ============================================================================
+   Month View
+   ============================================================================ */
+
+.month-view-container {
+  padding: 1rem 2rem;
+  max-width: 100%;
+  margin: 0 auto;
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
+.month-nav {
+  margin-bottom: 1.5rem;
+}
+
+.month-title {
+  font-weight: 600;
+}
+
+.month-grid-wrapper {
+  background: var(--bs-body-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.month-dow-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.month-dow-header {
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--bs-secondary);
+  letter-spacing: 0.05em;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 1px;
+  background: rgba(0, 0, 0, 0.05);
+  flex: 1;
+}
+
+.month-day-cell {
+  background: var(--bs-body-bg);
+  min-height: 60px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.month-day-cell:hover {
+  background: rgba(var(--bs-primary-rgb), 0.08);
+}
+
+.month-day-cell.other-month {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.month-day-cell.other-month .month-day-number {
+  color: var(--bs-secondary);
+  opacity: 0.5;
+}
+
+.month-day-cell.is-weekend {
+  background: rgba(0, 0, 0, 0.01);
+}
+
+.month-day-cell.is-today .month-day-number {
+  background: var(--bs-primary);
+  color: white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.month-day-cell.is-selected {
+  background: rgba(var(--bs-primary-rgb), 0.12);
+}
+
+.month-day-number {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--bs-body-color);
+  margin-bottom: 0.25rem;
+}
+
+.month-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 0.25rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.month-event-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: white;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.month-event-chip:hover {
+  opacity: 0.85;
+}
+
+.month-event-time {
+  font-weight: 500;
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  opacity: 0.9;
+}
+
+.month-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-event-more {
+  font-size: 0.7rem;
+  color: var(--bs-secondary);
+  font-weight: 500;
+  padding: 2px 4px;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .month-grid-wrapper {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-bs-theme="dark"] .month-dow-row {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-bs-theme="dark"] .month-grid {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .month-day-cell.other-month {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-bs-theme="dark"] .month-day-cell.is-weekend {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+/* Responsive adjustments for Month View */
+@media (max-width: 768px) {
+  .month-view-container {
+    padding: 0.5rem;
+  }
+
+  .month-day-cell {
+    min-height: 50px;
+    padding: 0.25rem;
+  }
+
+  .month-day-number {
+    font-size: 0.75rem;
+  }
+
+  /* Hide time on tablets, show only title */
+  .month-event-time {
+    display: none;
+  }
+
+  .month-event-chip {
+    padding: 1px 4px;
+    font-size: 0.6rem;
+  }
+
+  .month-dow-header {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* On phones, convert chips to dots */
+  .month-event-chip {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    min-height: 8px;
+    padding: 0;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
+  .month-event-chip span {
+    display: none;
+  }
+
+  .month-day-events {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: auto;
+  }
+
+  .month-event-more {
+    font-size: 0.55rem;
+  }
+
+  .month-day-cell.is-today .month-day-number {
+    width: 22px;
+    height: 22px;
+  }
+}

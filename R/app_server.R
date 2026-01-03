@@ -34,6 +34,7 @@ app_server <- function(input, output, session) {
 
   # View modules
   mod_week_view_server("week_view", events = events, selected_date = selected_date, calendars = calendars)
+  mod_month_view_server("month_view", events = events, selected_date = selected_date, calendars = calendars)
   mod_day_view_server("day_view", events = events, selected_date = selected_date, calendars = calendars)
   mod_agenda_view_server("agenda_view", events = events, selected_date = selected_date)
 

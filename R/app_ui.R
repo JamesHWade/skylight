@@ -67,6 +67,11 @@ app_ui <- function() {
     # Spacer to push remaining items right
     bslib::nav_spacer(),
 
+    # Weather widget in navbar
+    bslib::nav_item(
+      mod_weather_ui("weather")
+    ),
+
     # Clock widget in navbar
     bslib::nav_item(
       mod_clock_ui("clock")

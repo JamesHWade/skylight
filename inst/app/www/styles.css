@@ -68,6 +68,45 @@
   font-size: 0.85rem;
 }
 
+/* Weather widget */
+.weather-widget {
+  display: flex !important;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 0.5rem;
+}
+
+.weather-widget,
+.weather-widget *,
+.weather-widget .weather-temp,
+.weather-widget .weather-condition {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.weather-widget .weather-icon {
+  display: flex;
+  align-items: center;
+}
+
+.weather-widget .weather-temp {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.weather-widget .weather-condition {
+  opacity: 0.85;
+  font-size: 0.75rem;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weather-unavailable {
+  opacity: 0.5;
+}
+
 /* Clock widget */
 .clock-widget {
   display: flex !important;
@@ -123,9 +162,12 @@
    Progressive Hiding - Widest to Narrowest
    ============================================================================ */
 
-/* Stage 1: Below 1000px - Hide clock date */
+/* Stage 1: Below 1000px - Hide clock date and weather condition */
 @media (max-width: 999px) {
   .clock-widget .clock-date {
+    display: none !important;
+  }
+  .weather-widget .weather-condition {
     display: none !important;
   }
 }
@@ -164,9 +206,10 @@
   }
 }
 
-/* Stage 4: Below 480px - Hide clock */
+/* Stage 4: Below 480px - Hide clock and weather */
 @media (max-width: 479px) {
-  .clock-widget {
+  .clock-widget,
+  .weather-widget {
     display: none !important;
   }
 }

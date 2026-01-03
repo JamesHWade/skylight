@@ -94,6 +94,7 @@ app_server <- function(input, output, session) {
 
   # Widget modules
   mod_clock_server("clock")
+  mod_weather_server("weather")
   mod_chat_server("chat", events = events, calendars = calendars, selected_date = selected_date)
 }
 

@@ -30,14 +30,18 @@ app_server <- function(input, output, session) {
   # Auto dark mode module
   auto_dark_settings <- mod_auto_dark_mode_server("auto_dark")
 
+  # Cache demo events so they don't regenerate randomly
+  demo_events_cache <- if (demo_mode) generate_sample_events() else NULL
+  demo_calendars_cache <- if (demo_mode) generate_sample_calendars() else NULL
+
   # Events reactive with offline resilience
   events <- shiny::reactive({
     # React to manual refresh
     refresh_trigger()
 
     if (demo_mode) {
-      # Demo mode uses sample events
-      generate_sample_events()
+      # Demo mode uses cached sample events
+      demo_events_cache
     } else {
       # Authenticated mode with offline fallback
       result <- fetch_events_resilient(
@@ -61,7 +65,7 @@ app_server <- function(input, output, session) {
   # Calendars reactive with offline resilience
   calendars <- shiny::reactive({
     if (demo_mode) {
-      generate_sample_calendars()
+      demo_calendars_cache
     } else {
       tryCatch({
         get_calendars()

@@ -129,8 +129,8 @@ mod_month_view_server <- function(id, events, selected_date, calendars) {
           next_days <- NULL
         }
 
-        # Combine all days
-        all_days <- c(prev_days, month_days, next_days)
+        # Combine all days (preserve Date class)
+        all_days <- as.Date(c(prev_days, month_days, next_days), origin = "1970-01-01")
 
         # Group events by day with full info
         events_by_day <- list()
@@ -184,13 +184,15 @@ mod_month_view_server <- function(id, events, selected_date, calendars) {
                 class = "month-day-events",
                 # Mini event cards with titles
                 lapply(display_events, function(evt) {
-                  time_str <- format(as.POSIXct(evt$start), "%l:%M %p")
-                  time_str <- trimws(time_str)
+                  time_str <- tryCatch({
+                    formatted <- format(as.POSIXct(evt$start), "%l:%M %p")
+                    trimws(as.character(formatted))
+                  }, error = function(e) "")
                   htmltools::div(
                     class = "month-event-chip",
-                    style = sprintf("background-color: %s;", evt$color),
+                    style = sprintf("background-color: %s;", evt$color %||% "#4285F4"),
                     htmltools::span(class = "month-event-time", time_str),
-                    htmltools::span(class = "month-event-title", evt$title)
+                    htmltools::span(class = "month-event-title", evt$title %||% "")
                   )
                 }),
                 # Show +N if more than 3 events

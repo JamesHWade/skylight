@@ -160,10 +160,10 @@ fetch_events_resilient <- function(start = Sys.Date(),
         error = e$message
       )
     } else {
-      # No cache available - return empty with error
+      # No cache available - fall back to demo events
       list(
-        events = data.frame(),
-        source = "none",
+        events = generate_sample_events(start, end),
+        source = "demo_fallback",
         is_offline = TRUE,
         cache_age_mins = NULL,
         error = e$message

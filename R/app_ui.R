@@ -80,6 +80,11 @@ app_ui <- function() {
       mod_weather_ui("weather")
     ),
 
+    # Countdown widget in navbar
+    bslib::nav_item(
+      mod_countdown_ui("countdown")
+    ),
+
     # Chores widget in navbar
     bslib::nav_item(
       mod_chores_widget_ui("chores_widget")

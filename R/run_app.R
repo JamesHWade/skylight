@@ -194,7 +194,16 @@ add_external_resources <- function() {
           ),
           # Modal Footer
           htmltools::tags$div(
-            class = "modal-footer",
+            class = "modal-footer justify-content-between",
+            # Countdown toggle button
+            htmltools::tags$button(
+              id = "event-countdown-toggle",
+              type = "button",
+              class = "btn btn-outline-primary btn-sm",
+              onclick = "toggleEventCountdown()",
+              htmltools::span(class = "countdown-icon-add", bsicons::bs_icon("stopwatch"), " Add Countdown"),
+              htmltools::span(class = "countdown-icon-remove d-none", bsicons::bs_icon("x-circle"), " Remove Countdown")
+            ),
             htmltools::tags$button(
               type = "button",
               class = "btn btn-secondary",

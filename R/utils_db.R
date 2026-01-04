@@ -105,6 +105,27 @@ db_init <- function() {
     CREATE INDEX IF NOT EXISTS idx_events_start ON events(start)
   ")
 
+
+  # Create sequence for countdown_events if not exists
+  tryCatch(
+    DBI::dbExecute(con, "CREATE SEQUENCE IF NOT EXISTS countdown_events_id_seq"),
+    error = function(e) NULL
+  )
+
+  # Create countdown_events table for tracking special events
+  DBI::dbExecute(con, "
+    CREATE TABLE IF NOT EXISTS countdown_events (
+      id INTEGER PRIMARY KEY DEFAULT nextval('countdown_events_id_seq'),
+      event_id VARCHAR,
+      title VARCHAR NOT NULL,
+      target_date DATE NOT NULL,
+      emoji VARCHAR DEFAULT '🎉',
+      color VARCHAR DEFAULT '#6366f1',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(event_id)
+    )
+  ")
+
   # Initialize chores tables
   db_init_chores(con)
 

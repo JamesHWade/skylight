@@ -2787,7 +2787,155 @@
 
 
 /* ==========================================================================
-   11. OVERRIDES
+   11. COUNTDOWN WIDGET
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   11.1 Countdown Widget (Navbar)
+   -------------------------------------------------------------------------- */
+
+.countdown-widget {
+  display: flex !important;
+  align-items: center;
+  gap: 0.4rem;
+  color: rgba(255, 255, 255, 0.95) !important;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--skylight-radius-sm, 4px);
+  transition: background var(--skylight-transition, 0.15s ease);
+  margin-right: 0.5rem;
+  white-space: nowrap;
+}
+
+.countdown-widget:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.countdown-widget,
+.countdown-widget *,
+.countdown-widget .countdown-text,
+.countdown-widget .countdown-days {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.countdown-widget .countdown-icon {
+  font-size: 1rem;
+}
+
+.countdown-widget .countdown-text {
+  font-size: 0.85rem;
+}
+
+.countdown-widget .countdown-days {
+  font-size: 1rem;
+}
+
+.countdown-widget .countdown-today {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* --------------------------------------------------------------------------
+   11.2 Countdown List (Modal)
+   -------------------------------------------------------------------------- */
+
+.countdown-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.countdown-item {
+  transition: background var(--skylight-transition-fast, 0.1s ease);
+}
+
+.countdown-item:hover {
+  background: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.countdown-item:last-child {
+  border-bottom: none !important;
+}
+
+.countdown-item-emoji {
+  flex-shrink: 0;
+}
+
+.countdown-item-days {
+  min-width: 80px;
+}
+
+/* --------------------------------------------------------------------------
+   11.3 Emoji Radio Picker (Countdown Form)
+   -------------------------------------------------------------------------- */
+
+.emoji-radio-picker .shiny-options-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.emoji-radio-picker .shiny-options-group label {
+  font-size: 1.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  margin: 0;
+  transition: all 0.15s ease-in-out;
+}
+
+.emoji-radio-picker .shiny-options-group label:hover {
+  border-color: var(--bs-primary, #0d6efd);
+  background: var(--bs-primary-bg-subtle, #e7f1ff);
+}
+
+.emoji-radio-picker .shiny-options-group label:has(input:checked) {
+  border-color: var(--bs-primary, #0d6efd);
+  border-width: 2px;
+  background: var(--bs-primary-bg-subtle, #e7f1ff);
+  box-shadow: 0 0 0 2px var(--bs-primary, #0d6efd);
+}
+
+.emoji-radio-picker .shiny-options-group input[type='radio'] {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   11.4 Countdown Responsive
+   -------------------------------------------------------------------------- */
+
+/* Hide countdown text on narrow screens, show only icon + days */
+@media (max-width: 899px) {
+  .countdown-widget .countdown-text:not(.countdown-days) {
+    display: none;
+  }
+}
+
+/* Hide entire widget on very narrow screens */
+@media (max-width: 479px) {
+  .countdown-widget {
+    display: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   11.5 Countdown Dark Mode
+   -------------------------------------------------------------------------- */
+
+[data-bs-theme="dark"] .countdown-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .emoji-radio-picker .shiny-options-group label:has(input:checked) {
+  background: rgba(13, 110, 253, 0.2);
+}
+
+
+/* ==========================================================================
+   12. OVERRIDES
    ==========================================================================
    Bootstrap/bslib overrides that must have highest specificity.
    Keep these at the END of the file.

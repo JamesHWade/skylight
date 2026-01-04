@@ -98,6 +98,7 @@ app_server <- function(input, output, session) {
   # Widget modules
   mod_clock_server("clock")
   mod_weather_server("weather", root_session = session)
+  mod_countdown_server("countdown")
   mod_chores_widget_server("chores_widget", refresh_trigger = chores_refresh)
   mod_chat_server(
     "chat",
@@ -112,6 +113,58 @@ app_server <- function(input, output, session) {
   if (!demo_mode) {
     mod_quick_add_server("quick_add", calendars = calendars, refresh_trigger = refresh_trigger)
   }
+
+  # =========================================================================
+  # Event Countdown Toggle Handlers
+  # =========================================================================
+
+  # Check if event is a countdown and update button
+ shiny::observeEvent(input$check_event_countdown, {
+    data <- input$check_event_countdown
+    if (is.null(data) || is.null(data$event_id)) return()
+
+    is_countdown <- tryCatch(
+      is_countdown_event(data$event_id),
+      error = function(e) FALSE
+    )
+
+    session$sendCustomMessage("update-countdown-button", list(
+      is_countdown = is_countdown
+    ))
+  })
+
+  # Toggle countdown on/off for an event
+  shiny::observeEvent(input$toggle_event_countdown, {
+    data <- input$toggle_event_countdown
+    if (is.null(data) || is.null(data$event_id)) return()
+
+    tryCatch({
+      if (data$action == "add") {
+        add_countdown(
+          title = data$title,
+          target_date = data$target_date,
+          event_id = data$event_id
+        )
+        shiny::showNotification(
+          paste("Countdown added:", data$title),
+          type = "message",
+          duration = 3
+        )
+      } else {
+        remove_countdown_by_event(data$event_id)
+        shiny::showNotification(
+          "Countdown removed",
+          type = "warning",
+          duration = 2
+        )
+      }
+    }, error = function(e) {
+      shiny::showNotification(
+        paste("Error:", conditionMessage(e)),
+        type = "error"
+      )
+    })
+  })
 }
 
 #' Dark Mode Theme

@@ -391,6 +391,9 @@
   // Event Details Modal Handler
   // =========================================================================
 
+  // Track current event for countdown toggle
+  let currentModalEvent = null;
+
   const handleEventCardClick = function(e) {
     const eventCard = e.target.closest('[data-event-id]');
     if (!eventCard) return;
@@ -406,7 +409,40 @@
     }
   };
 
+  // Toggle countdown for current event
+  window.toggleEventCountdown = function() {
+    if (!currentModalEvent) return;
+
+    const toggleBtn = document.getElementById('event-countdown-toggle');
+    const isCurrentlyCountdown = toggleBtn && toggleBtn.classList.contains('is-countdown');
+
+    if (typeof Shiny !== 'undefined' && Shiny.setInputValue) {
+      Shiny.setInputValue('toggle_event_countdown', {
+        event_id: currentModalEvent.id,
+        title: currentModalEvent.title,
+        target_date: currentModalEvent.start.split('T')[0], // Extract date portion
+        action: isCurrentlyCountdown ? 'remove' : 'add',
+        nonce: Math.random()
+      });
+
+      // Optimistically update button state
+      if (isCurrentlyCountdown) {
+        toggleBtn.classList.remove('is-countdown', 'btn-primary');
+        toggleBtn.classList.add('btn-outline-primary');
+        toggleBtn.querySelector('.countdown-icon-add').classList.remove('d-none');
+        toggleBtn.querySelector('.countdown-icon-remove').classList.add('d-none');
+      } else {
+        toggleBtn.classList.add('is-countdown', 'btn-primary');
+        toggleBtn.classList.remove('btn-outline-primary');
+        toggleBtn.querySelector('.countdown-icon-add').classList.add('d-none');
+        toggleBtn.querySelector('.countdown-icon-remove').classList.remove('d-none');
+      }
+    }
+  };
+
   const showEventModal = function(event) {
+    // Store current event for countdown toggle
+    currentModalEvent = event;
     // Format date/time for display
     const startDate = new Date(event.start);
     const endDate = new Date(event.end);
@@ -466,10 +502,47 @@
       }
     }
 
+    // Update countdown button state
+    const countdownBtn = document.getElementById('event-countdown-toggle');
+    if (countdownBtn) {
+      // Check if this event is a countdown via Shiny
+      if (typeof Shiny !== 'undefined' && Shiny.setInputValue) {
+        Shiny.setInputValue('check_event_countdown', {
+          event_id: event.id,
+          nonce: Math.random()
+        });
+      }
+      // Reset to default state initially (will be updated by Shiny callback)
+      countdownBtn.classList.remove('is-countdown', 'btn-primary');
+      countdownBtn.classList.add('btn-outline-primary');
+      countdownBtn.querySelector('.countdown-icon-add').classList.remove('d-none');
+      countdownBtn.querySelector('.countdown-icon-remove').classList.add('d-none');
+    }
+
     // Show the modal using Bootstrap
     const bsModal = new bootstrap.Modal(modal);
     bsModal.show();
   };
+
+  // Listen for countdown status updates from Shiny
+  if (typeof Shiny !== 'undefined') {
+    Shiny.addCustomMessageHandler('update-countdown-button', function(data) {
+      const countdownBtn = document.getElementById('event-countdown-toggle');
+      if (!countdownBtn) return;
+
+      if (data.is_countdown) {
+        countdownBtn.classList.add('is-countdown', 'btn-primary');
+        countdownBtn.classList.remove('btn-outline-primary');
+        countdownBtn.querySelector('.countdown-icon-add').classList.add('d-none');
+        countdownBtn.querySelector('.countdown-icon-remove').classList.remove('d-none');
+      } else {
+        countdownBtn.classList.remove('is-countdown', 'btn-primary');
+        countdownBtn.classList.add('btn-outline-primary');
+        countdownBtn.querySelector('.countdown-icon-add').classList.remove('d-none');
+        countdownBtn.querySelector('.countdown-icon-remove').classList.add('d-none');
+      }
+    });
+  }
 
   // Event delegation for event cards
   document.addEventListener('click', handleEventCardClick);

@@ -557,8 +557,8 @@ complete_assignment <- function(assignment_id, notes = NULL, verified_by = NULL)
     assignment$chore_id[1],
     assignment$member_id[1],
     points_earned,
-    notes,
-    verified_by,
+    if (is.null(notes)) NA_character_ else notes,
+    if (is.null(verified_by)) NA_integer_ else verified_by,
     streak_bonus
   ))
 

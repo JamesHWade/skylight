@@ -18,14 +18,16 @@ NULL
 #' @param target_date Date of the event (Date or character YYYY-MM-DD).
 #' @param event_id Optional calendar event ID to link to.
 #' @param emoji Emoji to display (default: party popper).
+#' @param icon_base64 Optional base64-encoded custom icon.
 #' @param color Color for the countdown display.
 #'
 #' @return The ID of the created countdown.
 #'
 #' @export
 add_countdown <- function(title, target_date, event_id = NULL,
-                          emoji = "\U0001F389", color = "#6366f1") {
-  # Validate inputs
+                          emoji = "\U0001F389", icon_base64 = NULL,
+                          color = "#6366f1") {
+ # Validate inputs
   if (is.null(title) || nchar(trimws(title)) == 0) {
     stop("title cannot be empty", call. = FALSE)
   }
@@ -36,14 +38,15 @@ add_countdown <- function(title, target_date, event_id = NULL,
   }
 
   db_execute("
-    INSERT INTO countdown_events (event_id, title, target_date, emoji, color)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO countdown_events (event_id, title, target_date, emoji, icon_base64, color)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT (event_id) DO UPDATE SET
       title = EXCLUDED.title,
       target_date = EXCLUDED.target_date,
       emoji = EXCLUDED.emoji,
+      icon_base64 = EXCLUDED.icon_base64,
       color = EXCLUDED.color
-  ", params = list(event_id, title, as.character(target_date), emoji, color))
+  ", params = list(event_id, title, as.character(target_date), emoji, icon_base64, color))
 
   # Return the ID
   result <- db_query("
@@ -98,7 +101,7 @@ remove_countdown_by_event <- function(event_id) {
 get_countdowns <- function(future_only = TRUE, limit = 10) {
   if (future_only) {
     db_query("
-      SELECT id, event_id, title, target_date, emoji, color, created_at
+      SELECT id, event_id, title, target_date, emoji, icon_base64, color, created_at
       FROM countdown_events
       WHERE target_date >= ?
       ORDER BY target_date ASC
@@ -106,7 +109,7 @@ get_countdowns <- function(future_only = TRUE, limit = 10) {
     ", params = list(as.character(Sys.Date()), as.integer(limit)))
   } else {
     db_query("
-      SELECT id, event_id, title, target_date, emoji, color, created_at
+      SELECT id, event_id, title, target_date, emoji, icon_base64, color, created_at
       FROM countdown_events
       ORDER BY target_date ASC
       LIMIT ?
@@ -123,7 +126,7 @@ get_countdowns <- function(future_only = TRUE, limit = 10) {
 #' @export
 get_next_countdown <- function() {
   result <- db_query("
-    SELECT id, event_id, title, target_date, emoji, color
+    SELECT id, event_id, title, target_date, emoji, icon_base64, color
     FROM countdown_events
     WHERE target_date >= ?
     ORDER BY target_date ASC
@@ -162,7 +165,7 @@ is_countdown_event <- function(event_id) {
 #' @export
 get_countdown_by_event <- function(event_id) {
   result <- db_query("
-    SELECT id, event_id, title, target_date, emoji, color
+    SELECT id, event_id, title, target_date, emoji, icon_base64, color
     FROM countdown_events
     WHERE event_id = ?
   ", params = list(event_id))
@@ -238,6 +241,7 @@ get_countdown_summary <- function() {
     target_date = countdown$target_date,
     days = days,
     emoji = countdown$emoji,
+    icon_base64 = countdown$icon_base64,
     color = countdown$color,
     text = format_countdown(days, countdown$title)
   )

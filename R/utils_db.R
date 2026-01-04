@@ -120,11 +120,17 @@ db_init <- function() {
       title VARCHAR NOT NULL,
       target_date DATE NOT NULL,
       emoji VARCHAR DEFAULT '🎉',
+      icon_base64 VARCHAR,
       color VARCHAR DEFAULT '#6366f1',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(event_id)
     )
   ")
+
+  # Migration: add icon_base64 column if it doesn't exist
+  tryCatch({
+    DBI::dbExecute(con, "ALTER TABLE countdown_events ADD COLUMN icon_base64 VARCHAR")
+  }, error = function(e) NULL)
 
   # Initialize chores tables
   db_init_chores(con)

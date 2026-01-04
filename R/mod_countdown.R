@@ -36,6 +36,9 @@ mod_countdown_server <- function(id) {
     # Refresh trigger
     refresh_trigger <- shiny::reactiveVal(0)
 
+    # Generated icon storage
+    generated_icon <- shiny::reactiveVal(NULL)
+
     # Auto-refresh every 5 minutes (countdowns don't need frequent updates)
     auto_refresh <- shiny::reactiveTimer(300000)
 
@@ -50,30 +53,44 @@ mod_countdown_server <- function(id) {
       )
     })
 
+    # Helper to render countdown icon
+    render_countdown_icon <- function(icon_base64, emoji, size = "1rem") {
+      if (!is.null(icon_base64) && !is.na(icon_base64) && nchar(icon_base64) > 0) {
+        htmltools::img(
+          src = paste0("data:image/png;base64,", icon_base64),
+          class = "countdown-custom-icon",
+          style = htmltools::css(width = size, height = size),
+          alt = ""
+        )
+      } else {
+        # Use Bootstrap icon instead of emoji for navbar consistency
+        bsicons::bs_icon("calendar-heart", class = "me-1")
+      }
+    }
+
     # Render widget display
     output$countdown_display <- shiny::renderUI({
       countdown <- countdown_data()
 
       if (is.null(countdown)) {
-        # No countdowns configured
+        # No countdowns configured - use Bootstrap icon
         htmltools::tagList(
-          htmltools::span(class = "countdown-icon", "\U0001F4C5"),
-          htmltools::span(class = "countdown-text text-muted", "No countdowns")
+          bsicons::bs_icon("calendar-heart", class = "me-1"),
+          htmltools::span(class = "countdown-text text-muted d-none d-lg-inline", "No countdowns")
         )
       } else if (countdown$days == 0) {
         # Today!
         htmltools::tagList(
-          htmltools::span(class = "countdown-icon", countdown$emoji),
+          render_countdown_icon(countdown$icon_base64, countdown$emoji, "1.25rem"),
           htmltools::span(
             class = "countdown-text countdown-today",
-            style = htmltools::css(color = countdown$color),
-            paste0("Today: ", countdown$title, "!")
+            "Today!"
           )
         )
       } else if (countdown$days == 1) {
         # Tomorrow
         htmltools::tagList(
-          htmltools::span(class = "countdown-icon", countdown$emoji),
+          render_countdown_icon(countdown$icon_base64, countdown$emoji, "1.25rem"),
           htmltools::span(
             class = "countdown-text",
             htmltools::span(class = "countdown-days fw-bold", "1"),
@@ -83,7 +100,7 @@ mod_countdown_server <- function(id) {
       } else {
         # Multiple days
         htmltools::tagList(
-          htmltools::span(class = "countdown-icon", countdown$emoji),
+          render_countdown_icon(countdown$icon_base64, countdown$emoji, "1.25rem"),
           htmltools::span(
             class = "countdown-text",
             htmltools::span(class = "countdown-days fw-bold", countdown$days),
@@ -111,7 +128,7 @@ mod_countdown_server <- function(id) {
       shiny::showModal(shiny::modalDialog(
         title = htmltools::div(
           class = "d-flex align-items-center gap-2",
-          htmltools::span("\U0001F389"),
+          bsicons::bs_icon("calendar-heart"),
           "Countdown Events"
         ),
         size = "m",
@@ -137,7 +154,7 @@ mod_countdown_server <- function(id) {
       if (is.null(countdowns) || nrow(countdowns) == 0) {
         return(htmltools::div(
           class = "text-center text-muted py-4",
-          htmltools::p(htmltools::span(style = "font-size: 3rem;", "\U0001F4C5")),
+          htmltools::p(bsicons::bs_icon("calendar-heart", size = "3rem")),
           htmltools::p("No countdown events yet."),
           htmltools::p(class = "small", "Add special events to track how many days until they happen!")
         ))
@@ -146,33 +163,46 @@ mod_countdown_server <- function(id) {
       htmltools::div(
         class = "countdown-list",
         lapply(seq_len(nrow(countdowns)), function(i) {
-          c <- countdowns[i, ]
-          days <- days_until(c$target_date)
+          cd <- countdowns[i, ]
+          days <- days_until(cd$target_date)
           is_past <- days < 0
           is_today <- days == 0
+
+          # Render icon (custom or fallback)
+          icon_element <- if (!is.null(cd$icon_base64) && !is.na(cd$icon_base64) &&
+                              nchar(cd$icon_base64) > 0) {
+            htmltools::img(
+              src = paste0("data:image/png;base64,", cd$icon_base64),
+              class = "countdown-item-icon",
+              style = "width: 40px; height: 40px; object-fit: contain; border-radius: 6px;",
+              alt = ""
+            )
+          } else {
+            htmltools::span(
+              class = "countdown-item-emoji",
+              style = "font-size: 1.5rem;",
+              cd$emoji
+            )
+          }
 
           htmltools::div(
             class = paste("countdown-item d-flex align-items-center gap-3 p-3 border-bottom",
                          if (is_past) "opacity-50" else if (is_today) "bg-light"),
-            # Emoji
-            htmltools::span(
-              class = "countdown-item-emoji",
-              style = "font-size: 1.5rem;",
-              c$emoji
-            ),
+            # Icon
+            icon_element,
             # Info
             htmltools::div(
               class = "flex-grow-1",
-              htmltools::div(class = "fw-medium", c$title),
+              htmltools::div(class = "fw-medium", cd$title),
               htmltools::div(
                 class = "small text-muted",
-                format(as.Date(c$target_date), "%B %d, %Y")
+                format(as.Date(cd$target_date), "%B %d, %Y")
               )
             ),
             # Days count
             htmltools::div(
               class = "countdown-item-days text-end",
-              style = htmltools::css(color = if (is_today) c$color else NULL),
+              style = htmltools::css(color = if (is_today) cd$color else NULL),
               if (is_today) {
                 htmltools::span(class = "badge bg-success", "Today!")
               } else if (days == 1) {
@@ -188,13 +218,13 @@ mod_countdown_server <- function(id) {
             ),
             # Delete button
             shiny::actionButton(
-              ns(paste0("delete_", c$id)),
+              ns(paste0("delete_", cd$id)),
               "",
               icon = bsicons::bs_icon("trash"),
               class = "btn-outline-danger btn-sm ms-2",
               onclick = sprintf(
                 "Shiny.setInputValue('%s', {id: %d, nonce: Math.random()})",
-                ns("delete_countdown"), c$id
+                ns("delete_countdown"), cd$id
               )
             )
           )
@@ -214,10 +244,11 @@ mod_countdown_server <- function(id) {
 
     # Handle add countdown button
     shiny::observeEvent(input$add_countdown, {
+      generated_icon(NULL)  # Reset generated icon
       shiny::removeModal()
       shiny::showModal(shiny::modalDialog(
         title = "Add Countdown",
-        size = "s",
+        size = "m",
         easyClose = TRUE,
         footer = htmltools::tagList(
           shiny::modalButton("Cancel"),
@@ -225,6 +256,72 @@ mod_countdown_server <- function(id) {
         ),
         countdown_form(ns)
       ))
+    })
+
+    # Icon preview output
+    output$countdown_icon_preview <- shiny::renderUI({
+      icon_data <- generated_icon()
+      if (is.null(icon_data) || nchar(icon_data) == 0) {
+        # Show placeholder
+        return(htmltools::div(
+          class = "icon-preview-placeholder",
+          bsicons::bs_icon("image", size = "2rem", class = "text-muted"),
+          htmltools::span(class = "small text-muted d-block mt-1", "No icon yet")
+        ))
+      }
+
+      htmltools::div(
+        class = "icon-preview",
+        htmltools::img(
+          src = paste0("data:image/png;base64,", icon_data),
+          class = "generated-icon-img",
+          alt = "Generated icon"
+        ),
+        shiny::actionButton(
+          ns("clear_countdown_icon"),
+          "",
+          icon = bsicons::bs_icon("x-circle"),
+          class = "btn-link btn-sm text-muted p-0 clear-icon-btn",
+          title = "Remove generated icon"
+        )
+      )
+    })
+
+    # Generate icon for countdown
+    shiny::observeEvent(input$generate_countdown_icon, {
+      title <- trimws(input$countdown_title)
+      if (nchar(title) == 0) {
+        shiny::showNotification("Enter an event name first", type = "warning")
+        return()
+      }
+
+      shiny::withProgress(message = "Generating icon...", {
+        result <- generate_icon(title, type = "event")
+        if (result$success) {
+          generated_icon(result$base64)
+          shiny::showNotification("Icon generated!", type = "message", duration = 2)
+        } else {
+          shiny::showNotification(
+            paste("Generation failed:", result$error),
+            type = "error"
+          )
+        }
+      })
+    })
+
+    # Clear generated icon
+    shiny::observeEvent(input$clear_countdown_icon, {
+      generated_icon(NULL)
+    })
+
+    # Use emoji instead
+    shiny::observeEvent(input$use_countdown_emoji, {
+      generated_icon(NULL)
+      shiny::showNotification(
+        paste("Using emoji:", input$countdown_emoji),
+        type = "message",
+        duration = 2
+      )
     })
 
     # Save new countdown
@@ -244,12 +341,16 @@ mod_countdown_server <- function(id) {
       emoji <- input$countdown_emoji
       if (is.null(emoji) || nchar(emoji) == 0) emoji <- "\U0001F389"
 
+      icon_base64 <- generated_icon()
+
       add_countdown(
         title = title,
         target_date = target_date,
-        emoji = emoji
+        emoji = emoji,
+        icon_base64 = icon_base64
       )
 
+      generated_icon(NULL)  # Clear for next use
       refresh_trigger(refresh_trigger() + 1)
       shiny::removeModal()
       shiny::showNotification(paste("Countdown added:", title), type = "message")
@@ -296,16 +397,60 @@ countdown_form <- function(ns) {
       value = Sys.Date() + 30,
       min = Sys.Date()
     ),
+    # Icon section - AI generated is primary, emoji is fallback
     htmltools::div(
-      class = "mb-3",
+      class = "icon-section mb-3",
       htmltools::tags$label(class = "form-label", "Icon"),
-      shiny::radioButtons(
-        ns("countdown_emoji"),
-        NULL,
-        choices = setNames(emoji_choices, emoji_choices),
-        selected = emoji_choices[1],
-        inline = TRUE
-      ) |> htmltools::tagAppendAttributes(class = "emoji-radio-picker")
+
+      # AI icon area (primary)
+      htmltools::div(
+        class = "ai-icon-section mb-2",
+        shiny::uiOutput(ns("countdown_icon_preview")),
+        if (gemini_available()) {
+          htmltools::div(
+            class = "d-flex gap-2 align-items-center mt-2",
+            shiny::actionButton(
+              ns("generate_countdown_icon"),
+              htmltools::tagList(bsicons::bs_icon("stars"), "Generate Icon"),
+              class = "btn-outline-primary btn-sm"
+            ),
+            htmltools::span(
+              class = "small text-muted",
+              "AI-generated based on event name"
+            )
+          )
+        } else {
+          htmltools::div(
+            class = "text-muted small",
+            bsicons::bs_icon("info-circle"),
+            " Set GEMINI_API_KEY for AI icons"
+          )
+        }
+      ),
+
+      # Emoji fallback (collapsed by default)
+      htmltools::tags$details(
+        class = "emoji-fallback mt-2",
+        htmltools::tags$summary(
+          class = "text-muted small cursor-pointer",
+          "Or choose an emoji instead..."
+        ),
+        htmltools::div(
+          class = "pt-2",
+          shiny::radioButtons(
+            ns("countdown_emoji"),
+            NULL,
+            choices = setNames(emoji_choices, emoji_choices),
+            selected = emoji_choices[1],
+            inline = TRUE
+          ) |> htmltools::tagAppendAttributes(class = "emoji-radio-picker"),
+          shiny::actionButton(
+            ns("use_countdown_emoji"),
+            "Use this emoji",
+            class = "btn-outline-secondary btn-sm mt-2"
+          )
+        )
+      )
     )
   )
 }

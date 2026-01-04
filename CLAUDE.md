@@ -72,6 +72,7 @@ Required:
 - `ANTHROPIC_API_KEY` - for AI chat
 
 Optional:
+- `GEMINI_API_KEY` - AI-generated icons for chores and events (via gemini.R)
 - `OPENWEATHER_API_KEY` - weather widget
 - `WEATHER_LOCATION` - default weather location
 - `SKYLIGHT_DB_PATH` - custom DuckDB path

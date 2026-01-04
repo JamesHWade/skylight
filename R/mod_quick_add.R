@@ -30,12 +30,14 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
 
     # Track the date for the new event
     selected_date_for_event <- shiny::reactiveVal(NULL)
+    generated_event_icon <- shiny::reactiveVal(NULL)  # For AI-generated icon
 
     # Listen for quick add trigger from JavaScript
     shiny::observeEvent(input$quick_add_trigger, {
       trigger_data <- input$quick_add_trigger
       if (!is.null(trigger_data) && !is.null(trigger_data$date)) {
         selected_date_for_event(as.Date(trigger_data$date))
+        generated_event_icon(NULL)  # Reset icon
         show_quick_add_modal()
       }
     }, ignoreInit = TRUE)
@@ -87,12 +89,29 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
           htmltools::div(
             class = "quick-add-form",
 
-            # Event title
-            shiny::textInput(
-              ns("event_title"),
-              "Event Title",
-              placeholder = "Enter event title...",
-              width = "100%"
+            # Event title with icon generation
+            htmltools::div(
+              class = "d-flex gap-2 align-items-end mb-3",
+              htmltools::div(
+                class = "flex-grow-1",
+                shiny::textInput(
+                  ns("event_title"),
+                  "Event Title",
+                  placeholder = "Enter event title...",
+                  width = "100%"
+                )
+              ),
+              htmltools::div(
+                class = "icon-generate-section",
+                shiny::actionButton(
+                  ns("generate_event_icon"),
+                  htmltools::tagList(bsicons::bs_icon("stars")),
+                  class = "btn-outline-primary btn-sm",
+                  disabled = if (gemini_available()) NULL else "disabled",
+                  title = if (gemini_available()) "Generate AI icon" else "GEMINI_API_KEY not configured"
+                ),
+                shiny::uiOutput(ns("event_icon_preview"))
+              )
             ),
 
             # All day toggle and time inputs
@@ -171,6 +190,54 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
       )
     }
 
+    # Generate AI icon for event
+    shiny::observeEvent(input$generate_event_icon, {
+      title <- trimws(input$event_title)
+      if (nchar(title) == 0) {
+        shiny::showNotification("Enter an event title first", type = "warning")
+        return()
+      }
+
+      shiny::withProgress(message = "Generating icon...", {
+        result <- generate_icon(title, type = "event")
+        if (result$success) {
+          generated_event_icon(result$base64)
+          shiny::showNotification("Icon generated!", type = "message")
+        } else {
+          shiny::showNotification(paste("Generation failed:", result$error), type = "error")
+        }
+      })
+    })
+
+    # Icon preview output
+    output$event_icon_preview <- shiny::renderUI({
+      icon_data <- generated_event_icon()
+      if (is.null(icon_data) || nchar(icon_data) == 0) {
+        return(NULL)
+      }
+
+      htmltools::div(
+        class = "icon-preview mt-2",
+        htmltools::img(
+          src = paste0("data:image/png;base64,", icon_data),
+          class = "generated-icon-img",
+          alt = "Generated icon"
+        ),
+        shiny::actionButton(
+          ns("clear_event_icon"),
+          "",
+          icon = bsicons::bs_icon("x-circle"),
+          class = "btn-link btn-sm text-muted p-0 clear-icon-btn",
+          title = "Remove generated icon"
+        )
+      )
+    })
+
+    # Clear generated icon
+    shiny::observeEvent(input$clear_event_icon, {
+      generated_event_icon(NULL)
+    })
+
     # Handle event creation
     shiny::observeEvent(input$create_event, {
       title <- trimws(input$event_title)
@@ -225,6 +292,16 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
       )
 
       if (result$success) {
+        # Save generated icon if present
+        icon_data <- generated_event_icon()
+        if (!is.null(icon_data) && nchar(icon_data) > 0 && !is.null(result$event$id)) {
+          tryCatch({
+            save_event_icon(result$event$id, icon_data)
+          }, error = function(e) {
+            # Silent fail - icon saving is optional
+          })
+        }
+
         shiny::removeModal()
         shiny::showNotification(
           paste("Created:", title),

@@ -12,6 +12,7 @@ BugReports: https://github.com/youruser/skylight/issues
 Depends:
     R (>= 4.1.0)
 Imports:
+    base64enc,
     bsicons,
     bslib (>= 0.6.0),
     cachem,
@@ -19,6 +20,7 @@ Imports:
     duckdb,
     ellmer,
     gargle,
+    gemini.R,
     glue,
     htmltools,
     httr2,

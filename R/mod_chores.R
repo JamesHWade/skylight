@@ -95,6 +95,7 @@ mod_chores_server <- function(id, family_members = NULL) {
 
     # State - only need refresh trigger now, view_mode and date_filter come from inputs
     refresh_trigger <- shiny::reactiveVal(0)
+    generated_icon <- shiny::reactiveVal(NULL)  # For AI-generated icon base64
 
     # Load data reactives
     members <- shiny::reactive({
@@ -221,6 +222,55 @@ mod_chores_server <- function(id, family_members = NULL) {
         ),
         easyClose = TRUE
       ))
+      generated_icon(NULL)  # Reset when opening modal
+    })
+
+    # Generate AI icon
+    shiny::observeEvent(input$generate_icon, {
+      title <- trimws(input$chore_title)
+      if (nchar(title) == 0) {
+        shiny::showNotification("Enter a chore name first", type = "warning")
+        return()
+      }
+
+      shiny::withProgress(message = "Generating icon...", {
+        result <- generate_icon(title, type = "chore")
+        if (result$success) {
+          generated_icon(result$base64)
+          shiny::showNotification("Icon generated!", type = "message")
+        } else {
+          shiny::showNotification(paste("Generation failed:", result$error), type = "error")
+        }
+      })
+    })
+
+    # Icon preview output
+    output$icon_preview <- shiny::renderUI({
+      icon_data <- generated_icon()
+      if (is.null(icon_data) || nchar(icon_data) == 0) {
+        return(NULL)
+      }
+
+      htmltools::div(
+        class = "icon-preview",
+        htmltools::img(
+          src = paste0("data:image/png;base64,", icon_data),
+          class = "generated-icon-img",
+          alt = "Generated icon"
+        ),
+        shiny::actionButton(
+          ns("clear_generated_icon"),
+          "",
+          icon = bsicons::bs_icon("x-circle"),
+          class = "btn-link btn-sm text-muted p-0 clear-icon-btn",
+          title = "Remove generated icon"
+        )
+      )
+    })
+
+    # Clear generated icon
+    shiny::observeEvent(input$clear_generated_icon, {
+      generated_icon(NULL)
     })
 
     # Save new chore
@@ -231,14 +281,16 @@ mod_chores_server <- function(id, family_members = NULL) {
         return()
       }
 
-      # Create the chore
+      # Create the chore (use generated icon if available)
+      icon_data <- generated_icon()
       chore_id <- create_chore(
         title = title,
         description = input$chore_description,
         points = as.integer(input$chore_points),
         frequency = input$chore_frequency,
         category = input$chore_category,
-        icon_emoji = input$chore_icon
+        icon_emoji = input$chore_icon,
+        icon_base64 = if (!is.null(icon_data) && nchar(icon_data) > 0) icon_data else NULL
       )
 
       # Create assignments for selected members
@@ -387,7 +439,7 @@ render_by_chore <- function(assignments, ns) {
         class = "chore-group",
         htmltools::div(
           class = "chore-group-header",
-          htmltools::span(class = "chore-icon", chore_info$chore_icon),
+          render_chore_icon(chore_info$chore_icon_base64, chore_info$chore_icon),
           htmltools::span(class = "chore-title fw-medium", chore_info$chore_title),
           htmltools::span(class = "chore-points text-success", paste0("+", chore_info$chore_points))
         ),
@@ -490,7 +542,7 @@ chore_card <- function(assignment, ns, show_member = TRUE) {
     ),
 
     # Icon and title
-    htmltools::span(class = "chore-icon", assignment$chore_icon),
+    render_chore_icon(assignment$chore_icon_base64, assignment$chore_icon),
     htmltools::span(
       class = "chore-title",
       assignment$chore_title
@@ -615,14 +667,41 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
       ),
       selected = cat_val
     ),
-    # Icon picker using radioButtons (CSS in styles.css)
-    shiny::radioButtons(
-      ns("chore_icon"),
-      "Icon",
-      choices = icon_choices,
-      selected = icon_val,
-      inline = TRUE
-    ) |> htmltools::tagAppendAttributes(class = "icon-radio-picker"),
+    # Icon section with emoji picker and AI generate option
+    htmltools::div(
+      class = "icon-section mb-3",
+      htmltools::tags$label(class = "form-label", "Icon"),
+      htmltools::div(
+        class = "d-flex gap-3 align-items-start",
+        # Emoji picker
+        htmltools::div(
+          class = "flex-grow-1",
+          shiny::radioButtons(
+            ns("chore_icon"),
+            NULL,
+            choices = icon_choices,
+            selected = icon_val,
+            inline = TRUE
+          ) |> htmltools::tagAppendAttributes(class = "icon-radio-picker")
+        ),
+        # AI generate button and preview
+        htmltools::div(
+          class = "icon-generate-section",
+          shiny::actionButton(
+            ns("generate_icon"),
+            htmltools::tagList(bsicons::bs_icon("stars"), "Generate"),
+            class = "btn-outline-primary btn-sm mb-2",
+            disabled = if (gemini_available()) NULL else "disabled",
+            title = if (gemini_available()) "Generate AI icon" else "GEMINI_API_KEY not configured"
+          ),
+          # Preview area for generated icon
+          shiny::uiOutput(ns("icon_preview"))
+        )
+      ),
+      # Hidden input for base64 data
+      shiny::textInput(ns("icon_base64"), NULL, value = "") |>
+        htmltools::tagAppendAttributes(style = "display:none;")
+    ),
     shiny::textAreaInput(
       ns("chore_description"),
       "Description (optional)",
@@ -638,4 +717,30 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
       )
     }
   )
+}
+
+#' Render Chore Icon
+#'
+#' Renders either a base64-encoded image icon or falls back to emoji.
+#'
+#' @param icon_base64 Base64-encoded PNG image (can be NULL or NA).
+#' @param icon_emoji Fallback emoji icon.
+#' @param size Icon size (CSS value, default: "1.5rem").
+#'
+#' @return HTML element for the icon.
+#'
+#' @keywords internal
+render_chore_icon <- function(icon_base64, icon_emoji, size = "1.5rem") {
+  has_base64 <- !is.null(icon_base64) && !is.na(icon_base64) && nchar(icon_base64) > 0
+
+  if (has_base64) {
+    htmltools::img(
+      src = paste0("data:image/png;base64,", icon_base64),
+      class = "chore-icon-img",
+      style = htmltools::css(width = size, height = size),
+      alt = ""
+    )
+  } else {
+    htmltools::span(class = "chore-icon", icon_emoji)
+  }
 }

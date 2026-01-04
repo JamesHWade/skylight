@@ -91,6 +91,15 @@ db_init <- function() {
     )
   ")
 
+  # Create event_icons table for AI-generated calendar event icons
+  DBI::dbExecute(con, "
+    CREATE TABLE IF NOT EXISTS event_icons (
+      event_id VARCHAR PRIMARY KEY,
+      icon_base64 VARCHAR NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  ")
+
   # Create index on events start time
   DBI::dbExecute(con, "
     CREATE INDEX IF NOT EXISTS idx_events_start ON events(start)

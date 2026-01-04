@@ -59,6 +59,7 @@ db_init_chores <- function(con) {
       category VARCHAR DEFAULT 'general',
       estimated_minutes INTEGER DEFAULT 15,
       icon_emoji VARCHAR DEFAULT '\U0001F9F9',
+      icon_base64 VARCHAR,
       is_active BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -302,6 +303,7 @@ get_chore <- function(id) {
 #' @param category Category: 'kitchen', 'bedroom', 'bathroom', 'outdoor', 'general'.
 #' @param estimated_minutes Estimated time in minutes (default: 15).
 #' @param icon_emoji Emoji icon (default: broom).
+#' @param icon_base64 Base64-encoded PNG icon image (optional).
 #'
 #' @return The ID of the created chore.
 #'
@@ -313,10 +315,11 @@ create_chore <- function(title,
                           frequency_days = NULL,
                           category = "general",
                           estimated_minutes = 15,
-                          icon_emoji = "\U0001F9F9") {
+                          icon_emoji = "\U0001F9F9",
+                          icon_base64 = NULL) {
   db_execute("
-    INSERT INTO chores (title, description, points, frequency, frequency_days, category, estimated_minutes, icon_emoji)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO chores (title, description, points, frequency, frequency_days, category, estimated_minutes, icon_emoji, icon_base64)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   ", params = list(
     title,
     if (is.null(description)) NA_character_ else description,
@@ -325,7 +328,8 @@ create_chore <- function(title,
     if (is.null(frequency_days)) NA_character_ else frequency_days,
     category,
     estimated_minutes,
-    icon_emoji
+    icon_emoji,
+    if (is.null(icon_base64)) NA_character_ else icon_base64
   ))
 
   result <- db_query("SELECT MAX(id) as id FROM chores")
@@ -345,7 +349,7 @@ update_chore <- function(id, ...) {
   if (length(updates) == 0) return(invisible(TRUE))
 
   valid_fields <- c("title", "description", "points", "frequency", "frequency_days",
-                    "category", "estimated_minutes", "icon_emoji", "is_active")
+                    "category", "estimated_minutes", "icon_emoji", "icon_base64", "is_active")
   updates <- updates[names(updates) %in% valid_fields]
 
   if (length(updates) == 0) return(invisible(TRUE))
@@ -402,6 +406,7 @@ get_assignments_for_date <- function(date = Sys.Date(), member_id = NULL, status
       c.description as chore_description,
       c.points as chore_points,
       c.icon_emoji as chore_icon,
+      c.icon_base64 as chore_icon_base64,
       c.category as chore_category,
       m.name as member_name,
       m.display_name as member_display_name,
@@ -454,6 +459,7 @@ get_assignments_for_member <- function(member_id,
       c.description as chore_description,
       c.points as chore_points,
       c.icon_emoji as chore_icon,
+      c.icon_base64 as chore_icon_base64,
       c.category as chore_category
     FROM chore_assignments a
     JOIN chores c ON a.chore_id = c.id
@@ -616,7 +622,8 @@ get_completions_for_member <- function(member_id,
     SELECT
       cc.*,
       c.title as chore_title,
-      c.icon_emoji as chore_icon
+      c.icon_emoji as chore_icon,
+      c.icon_base64 as chore_icon_base64
     FROM chore_completions cc
     JOIN chores c ON cc.chore_id = c.id
     WHERE cc.member_id = ?
@@ -653,6 +660,7 @@ get_recent_completions <- function(limit = 20) {
       cc.*,
       c.title as chore_title,
       c.icon_emoji as chore_icon,
+      c.icon_base64 as chore_icon_base64,
       m.name as member_name,
       m.display_name as member_display_name,
       m.avatar_emoji as member_avatar

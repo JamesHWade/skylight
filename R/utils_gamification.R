@@ -240,14 +240,14 @@ get_today_points <- function(member_id) {
 #'
 #' @export
 get_period_points <- function(member_id, period = "week") {
-  date_filter <- get_period_filter(period)
+  filter <- get_period_filter(period)
 
   result <- db_query(paste0("
     SELECT COALESCE(SUM(points_earned + streak_bonus), 0) as total
     FROM chore_completions
     WHERE member_id = ?
-      AND ", date_filter
-  ), params = list(member_id))
+      AND ", filter$clause
+  ), params = c(list(member_id), filter$params))
 
   as.integer(result$total[1])
 }
@@ -266,7 +266,7 @@ get_period_points <- function(member_id, period = "week") {
 #'
 #' @export
 get_leaderboard <- function(period = "week") {
-  date_filter <- get_period_filter(period)
+  filter <- get_period_filter(period)
 
   db_query(paste0("
     SELECT
@@ -278,11 +278,11 @@ get_leaderboard <- function(period = "week") {
       COALESCE(SUM(c.points_earned + c.streak_bonus), 0) as total_points,
       COUNT(c.id) as completions
     FROM family_members m
-    LEFT JOIN chore_completions c ON m.id = c.member_id AND ", date_filter, "
+    LEFT JOIN chore_completions c ON m.id = c.member_id AND ", filter$clause, "
     WHERE m.is_active = TRUE
     GROUP BY m.id, m.name, m.display_name, m.avatar_emoji, m.color
     ORDER BY total_points DESC, completions DESC
-  "))
+  "), params = filter$params)
 }
 
 #' Get Member Stats
@@ -296,7 +296,7 @@ get_leaderboard <- function(period = "week") {
 #'
 #' @export
 get_member_stats <- function(member_id, period = "week") {
-  date_filter <- get_period_filter(period)
+  filter <- get_period_filter(period)
 
   points <- db_query(paste0("
     SELECT
@@ -304,8 +304,8 @@ get_member_stats <- function(member_id, period = "week") {
       COUNT(*) as completions
     FROM chore_completions
     WHERE member_id = ?
-      AND ", date_filter
-  ), params = list(member_id))
+      AND ", filter$clause
+  ), params = c(list(member_id), filter$params))
 
   current_streak <- get_current_streak(member_id)
   longest_streak <- get_longest_streak(member_id)
@@ -336,15 +336,15 @@ get_member_stats <- function(member_id, period = "week") {
 #' @export
 get_family_stats <- function(period = "week") {
   today <- as.character(Sys.Date())
-  date_filter <- get_period_filter(period, today)
+  filter <- get_period_filter(period, today)
 
   totals <- db_query(paste0("
     SELECT
       COALESCE(SUM(points_earned + streak_bonus), 0) as total_points,
       COUNT(*) as total_completions
     FROM chore_completions
-    WHERE ", date_filter
-  ))
+    WHERE ", filter$clause
+  ), params = filter$params)
 
   pending <- db_query("
     SELECT COUNT(*) as pending_today
@@ -374,26 +374,33 @@ get_family_stats <- function(period = "week") {
 
 #' Get Period Filter
 #'
-#' Returns SQL WHERE clause fragment for date filtering.
+#' Returns SQL WHERE clause fragment and params for date filtering.
 #'
 #' @param period One of 'day', 'week', 'month', 'all_time'.
 #' @param today Today's date as character string (YYYY-MM-DD).
 #'
-#' @return SQL string.
+#' @return A list with `clause` (SQL string with ? placeholders) and `params` (list of values).
 #'
 #' @keywords internal
 get_period_filter <- function(period, today = as.character(Sys.Date())) {
+  # Validate period to prevent any injection
+
+  valid_periods <- c("day", "week", "month", "all_time")
+  if (!period %in% valid_periods) {
+    period <- "all_time"
+  }
+
   # Calculate week and month start dates in R to avoid DuckDB ICU dependency
   today_date <- as.Date(today)
   week_start <- as.character(today_date - as.numeric(format(today_date, "%u")) + 1)
   month_start <- as.character(as.Date(format(today_date, "%Y-%m-01")))
 
   switch(period,
-    "day" = sprintf("DATE(completed_at) = '%s'", today),
-    "week" = sprintf("completed_at >= '%s'", week_start),
-    "month" = sprintf("completed_at >= '%s'", month_start),
-    "all_time" = "1=1",
-    "1=1"  # default
+    "day" = list(clause = "DATE(completed_at) = ?", params = list(today)),
+    "week" = list(clause = "completed_at >= ?", params = list(week_start)),
+    "month" = list(clause = "completed_at >= ?", params = list(month_start)),
+    "all_time" = list(clause = "1=1", params = list()),
+    list(clause = "1=1", params = list())  # default
   )
 }
 

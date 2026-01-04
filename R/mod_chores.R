@@ -98,6 +98,11 @@ mod_chores_server <- function(id, family_members = NULL) {
     generated_icon <- shiny::reactiveVal(NULL)  # For AI-generated icon base64
     created_observers <- shiny::reactiveVal(character())  # Track created checkbox observers
 
+    # Clean up on session end (observers auto-cleanup, this clears our tracking)
+    session$onSessionEnded(function() {
+      created_observers(character())
+    })
+
     # Load data reactives
     members <- shiny::reactive({
       refresh_trigger()
@@ -205,15 +210,18 @@ mod_chores_server <- function(id, family_members = NULL) {
         created_observers(c(created_observers(), complete_id))
 
         shiny::observeEvent(input[[complete_id]], {
-          # Re-fetch current status at time of click (not stale closure)
-          current_a <- assignments()
-          current_status <- current_a[current_a$id == assignment_id, "status"]
-          if (length(current_status) > 0 && current_status == "pending") {
-            complete_assignment(assignment_id)
+          # Try to toggle - functions are now atomic and idempotent
+          # First try to complete, if that fails try to uncomplete
+          result <- complete_assignment(assignment_id)
+          if (result$success) {
             shiny::showNotification("Chore completed! +points", type = "message", duration = 2)
-          } else if (length(current_status) > 0 && current_status == "completed") {
-            uncomplete_assignment(assignment_id)
-            shiny::showNotification("Chore uncompleted", type = "warning", duration = 2)
+          } else {
+            # Assignment wasn't pending, try to uncomplete
+            result <- uncomplete_assignment(assignment_id)
+            if (result$success) {
+              shiny::showNotification("Chore uncompleted", type = "warning", duration = 2)
+            }
+            # If neither worked, someone else toggled it - just refresh silently
           }
           refresh_trigger(refresh_trigger() + 1)
         }, ignoreInit = TRUE, once = FALSE)

@@ -9,11 +9,17 @@
 #'
 #' @keywords internal
 db_init_chores <- function(con) {
-  # Helper to create sequences (ignores if already exists)
+  # Helper to create sequences (logs warning on unexpected errors)
   create_sequence <- function(name) {
     tryCatch(
       DBI::dbExecute(con, paste0("CREATE SEQUENCE IF NOT EXISTS ", name, "_id_seq")),
-      error = function(e) NULL
+      error = function(e) {
+        # "already exists" is expected and safe to ignore
+        if (!grepl("already exists", conditionMessage(e), ignore.case = TRUE)) {
+          warning("Failed to create sequence ", name, "_id_seq: ", conditionMessage(e))
+        }
+        NULL
+      }
     )
   }
 
@@ -61,7 +67,10 @@ db_init_chores <- function(con) {
   tryCatch({
     DBI::dbExecute(con, "ALTER TABLE chores ADD COLUMN icon_base64 VARCHAR")
   }, error = function(e) {
-    # Column already exists, ignore
+    # "already exists" or "duplicate column" is expected and safe to ignore
+    if (!grepl("already|duplicate", conditionMessage(e), ignore.case = TRUE)) {
+      warning("Migration failed (icon_base64): ", conditionMessage(e))
+    }
   })
 
   # Chore assignments table
@@ -108,25 +117,89 @@ db_init_chores <- function(con) {
   ")
 
   # Create indexes for common queries
-  tryCatch({
-    DBI::dbExecute(con, "
-      CREATE INDEX IF NOT EXISTS idx_assignments_date ON chore_assignments(assigned_date)
-    ")
-    DBI::dbExecute(con, "
-      CREATE INDEX IF NOT EXISTS idx_assignments_member ON chore_assignments(member_id)
-    ")
-    DBI::dbExecute(con, "
-      CREATE INDEX IF NOT EXISTS idx_assignments_status ON chore_assignments(status)
-    ")
-    DBI::dbExecute(con, "
-      CREATE INDEX IF NOT EXISTS idx_completions_member ON chore_completions(member_id)
-    ")
-    DBI::dbExecute(con, "
-      CREATE INDEX IF NOT EXISTS idx_completions_date ON chore_completions(completed_at)
-    ")
-  }, error = function(e) NULL)
+  indexes <- list(
+    "idx_assignments_date" = "CREATE INDEX IF NOT EXISTS idx_assignments_date ON chore_assignments(assigned_date)",
+    "idx_assignments_member" = "CREATE INDEX IF NOT EXISTS idx_assignments_member ON chore_assignments(member_id)",
+    "idx_assignments_status" = "CREATE INDEX IF NOT EXISTS idx_assignments_status ON chore_assignments(status)",
+    "idx_completions_member" = "CREATE INDEX IF NOT EXISTS idx_completions_member ON chore_completions(member_id)",
+    "idx_completions_date" = "CREATE INDEX IF NOT EXISTS idx_completions_date ON chore_completions(completed_at)"
+  )
+  for (idx_name in names(indexes)) {
+    tryCatch({
+      DBI::dbExecute(con, indexes[[idx_name]])
+    }, error = function(e) {
+      if (!grepl("already exists", conditionMessage(e), ignore.case = TRUE)) {
+        warning("Failed to create index ", idx_name, ": ", conditionMessage(e))
+      }
+    })
+  }
 
   invisible(TRUE)
+}
+
+# =============================================================================
+# INPUT VALIDATION HELPERS
+# =============================================================================
+
+#' Validate Required String
+#'
+#' @param value The value to validate.
+#' @param name The parameter name for error messages.
+#' @param max_length Optional maximum length.
+#'
+#' @return The trimmed value if valid.
+#' @keywords internal
+validate_string <- function(value, name, max_length = 255) {
+
+  if (is.null(value) || !is.character(value) || length(value) != 1) {
+    stop(name, " must be a single character string", call. = FALSE)
+  }
+  value <- trimws(value)
+  if (nchar(value) == 0) {
+    stop(name, " cannot be empty", call. = FALSE)
+  }
+  if (nchar(value) > max_length) {
+    stop(name, " exceeds maximum length of ", max_length, " characters", call. = FALSE)
+  }
+  value
+}
+
+#' Validate Positive Integer
+#'
+#' @param value The value to validate.
+#' @param name The parameter name for error messages.
+#' @param min Minimum value (default: 1).
+#' @param max Maximum value (default: NULL for no max).
+#'
+#' @return The integer value if valid.
+#' @keywords internal
+validate_positive_int <- function(value, name, min = 1, max = NULL) {
+  if (is.null(value) || !is.numeric(value) || length(value) != 1) {
+    stop(name, " must be a single number", call. = FALSE)
+  }
+  value <- as.integer(value)
+  if (value < min) {
+    stop(name, " must be at least ", min, call. = FALSE)
+  }
+  if (!is.null(max) && value > max) {
+    stop(name, " must be at most ", max, call. = FALSE)
+  }
+  value
+}
+
+#' Validate Enum Value
+#'
+#' @param value The value to validate.
+#' @param name The parameter name for error messages.
+#' @param allowed Vector of allowed values.
+#'
+#' @return The value if valid.
+#' @keywords internal
+validate_enum <- function(value, name, allowed) {
+  if (is.null(value) || !value %in% allowed) {
+    stop(name, " must be one of: ", paste(allowed, collapse = ", "), call. = FALSE)
+  }
+  value
 }
 
 # =============================================================================
@@ -180,6 +253,20 @@ create_family_member <- function(name,
                                   avatar_emoji = "\U0001F464",
                                   color = "#74B9FF",
                                   birth_date = NULL) {
+  # Validate required fields
+  name <- validate_string(name, "name", max_length = 100)
+  avatar_emoji <- validate_string(avatar_emoji, "avatar_emoji", max_length = 10)
+
+  # Validate optional fields
+  if (!is.null(display_name)) {
+    display_name <- validate_string(display_name, "display_name", max_length = 100)
+  }
+
+  # Validate color format (basic check for hex color)
+  if (!grepl("^#[0-9A-Fa-f]{6}$", color)) {
+    stop("color must be a valid hex color (e.g., #74B9FF)", call. = FALSE)
+  }
+
   db_execute("
     INSERT INTO family_members (name, display_name, avatar_emoji, color, birth_date)
     VALUES (?, ?, ?, ?, ?)
@@ -326,6 +413,21 @@ create_chore <- function(title,
                           estimated_minutes = 15,
                           icon_emoji = "\U0001F9F9",
                           icon_base64 = NULL) {
+  # Validate required fields
+  title <- validate_string(title, "title", max_length = 200)
+  points <- validate_positive_int(points, "points", min = 1, max = 1000)
+  estimated_minutes <- validate_positive_int(estimated_minutes, "estimated_minutes", min = 1, max = 480)
+  icon_emoji <- validate_string(icon_emoji, "icon_emoji", max_length = 10)
+
+  # Validate enums
+  frequency <- validate_enum(frequency, "frequency", c("daily", "weekly", "monthly", "once"))
+  category <- validate_enum(category, "category", c("general", "kitchen", "bedroom", "bathroom", "outdoor"))
+
+  # Validate optional fields
+  if (!is.null(description)) {
+    description <- validate_string(description, "description", max_length = 500)
+  }
+
   db_execute("
     INSERT INTO chores (title, description, points, frequency, frequency_days, category, estimated_minutes, icon_emoji, icon_base64)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -485,6 +587,30 @@ get_assignments_for_member <- function(member_id,
 #'
 #' @export
 create_assignment <- function(chore_id, member_id, assigned_date, due_time = NULL) {
+  # Validate IDs
+  chore_id <- validate_positive_int(chore_id, "chore_id")
+  member_id <- validate_positive_int(member_id, "member_id")
+
+  # Validate date
+  if (!inherits(assigned_date, "Date")) {
+    assigned_date <- tryCatch(
+      as.Date(assigned_date),
+      error = function(e) stop("assigned_date must be a valid date", call. = FALSE)
+    )
+  }
+
+  # Verify chore exists
+  chore <- get_chore(chore_id)
+  if (is.null(chore)) {
+    stop("Chore with ID ", chore_id, " not found", call. = FALSE)
+  }
+
+  # Verify member exists
+  member <- get_family_member(member_id)
+  if (is.null(member)) {
+    stop("Family member with ID ", member_id, " not found", call. = FALSE)
+  }
+
   db_execute("
     INSERT INTO chore_assignments (chore_id, member_id, assigned_date, due_time)
     VALUES (?, ?, ?, ?)
@@ -502,25 +628,27 @@ create_assignment <- function(chore_id, member_id, assigned_date, due_time = NUL
 #' Complete Assignment
 #'
 #' Marks an assignment as completed and records the completion.
+#' Uses atomic conditional update to prevent race conditions.
 #'
 #' @param assignment_id The assignment ID.
 #' @param notes Optional completion notes.
 #' @param verified_by Optional member ID who verified.
 #'
-#' @return The completion record ID.
+#' @return A list with `success` (TRUE/FALSE) and `completion_id` (if success).
 #'
 #' @export
 complete_assignment <- function(assignment_id, notes = NULL, verified_by = NULL) {
-  # Get assignment details
+  # Get assignment details (only if pending)
   assignment <- db_query("
     SELECT a.*, c.points as chore_points
     FROM chore_assignments a
     JOIN chores c ON a.chore_id = c.id
-    WHERE a.id = ?
+    WHERE a.id = ? AND a.status = 'pending'
   ", params = list(assignment_id))
 
   if (nrow(assignment) == 0) {
-    stop("Assignment not found: ", assignment_id)
+    # Assignment not found or already completed - idempotent
+    return(list(success = FALSE, reason = "not_pending"))
   }
 
   # Calculate streak bonus
@@ -528,10 +656,17 @@ complete_assignment <- function(assignment_id, notes = NULL, verified_by = NULL)
   streak_bonus <- get_streak_bonus(streak_count + 1)  # +1 for this completion
   points_earned <- assignment$chore_points[1]
 
-  # Update assignment status
-  db_execute("
-    UPDATE chore_assignments SET status = 'completed' WHERE id = ?
+  # Atomic conditional update - only complete if still pending
+  rows_updated <- db_execute("
+    UPDATE chore_assignments
+    SET status = 'completed'
+    WHERE id = ? AND status = 'pending'
   ", params = list(assignment_id))
+
+  # Check if update actually happened (race condition protection)
+  if (is.null(rows_updated) || rows_updated == 0) {
+    return(list(success = FALSE, reason = "already_completed"))
+  }
 
   # Record completion
   db_execute("
@@ -549,7 +684,7 @@ complete_assignment <- function(assignment_id, notes = NULL, verified_by = NULL)
   ))
 
   result <- db_query("SELECT MAX(id) as id FROM chore_completions")
-  result$id[1]
+  list(success = TRUE, completion_id = result$id[1])
 }
 
 #' Skip Assignment
@@ -571,24 +706,32 @@ skip_assignment <- function(assignment_id) {
 #' Uncomplete Assignment
 #'
 #' Reverts a completed assignment back to pending.
+#' Uses atomic conditional update to prevent race conditions.
 #'
 #' @param assignment_id The assignment ID.
 #'
-#' @return TRUE on success.
+#' @return A list with `success` (TRUE/FALSE).
 #'
 #' @export
 uncomplete_assignment <- function(assignment_id) {
+  # Atomic conditional update - only uncomplete if currently completed
+  rows_updated <- db_execute("
+    UPDATE chore_assignments
+    SET status = 'pending'
+    WHERE id = ? AND status = 'completed'
+  ", params = list(assignment_id))
+
+  # Check if update actually happened
+  if (is.null(rows_updated) || rows_updated == 0) {
+    return(list(success = FALSE, reason = "not_completed"))
+  }
+
   # Remove completion record
   db_execute("
     DELETE FROM chore_completions WHERE assignment_id = ?
   ", params = list(assignment_id))
 
-  # Reset assignment status
-  db_execute("
-    UPDATE chore_assignments SET status = 'pending' WHERE id = ?
-  ", params = list(assignment_id))
-
-  invisible(TRUE)
+  list(success = TRUE)
 }
 
 # =============================================================================
@@ -633,7 +776,8 @@ get_completions_for_member <- function(member_id,
     params <- c(params, list(as.character(end_date)))
   }
 
-  query <- paste(query, "ORDER BY cc.completed_at DESC LIMIT", limit)
+  query <- paste(query, "ORDER BY cc.completed_at DESC LIMIT ?")
+  params <- c(params, list(as.integer(limit)))
 
   db_query(query, params = params)
 }
@@ -648,7 +792,7 @@ get_completions_for_member <- function(member_id,
 #'
 #' @export
 get_recent_completions <- function(limit = 20) {
-  db_query(paste0("
+  db_query("
     SELECT
       cc.*,
       c.title as chore_title,
@@ -661,7 +805,8 @@ get_recent_completions <- function(limit = 20) {
     JOIN chores c ON cc.chore_id = c.id
     JOIN family_members m ON cc.member_id = m.id
     ORDER BY cc.completed_at DESC
-    LIMIT ", limit))
+    LIMIT ?
+  ", params = list(as.integer(limit)))
 }
 
 # =============================================================================

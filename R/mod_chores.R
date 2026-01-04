@@ -96,6 +96,7 @@ mod_chores_server <- function(id, family_members = NULL) {
     # State - only need refresh trigger now, view_mode and date_filter come from inputs
     refresh_trigger <- shiny::reactiveVal(0)
     generated_icon <- shiny::reactiveVal(NULL)  # For AI-generated icon base64
+    created_observers <- shiny::reactiveVal(character())  # Track created checkbox observers
 
     # Load data reactives
     members <- shiny::reactive({
@@ -192,11 +193,21 @@ mod_chores_server <- function(id, family_members = NULL) {
       a <- assignments()
       if (is.null(a) || nrow(a) == 0) return()
 
+      existing <- created_observers()
+
       lapply(a$id, function(assignment_id) {
         complete_id <- paste0("complete_", assignment_id)
 
+        # Only create observer if not already created
+        if (complete_id %in% existing) return()
+
+        # Mark as created
+        created_observers(c(created_observers(), complete_id))
+
         shiny::observeEvent(input[[complete_id]], {
-          current_status <- a[a$id == assignment_id, "status"]
+          # Re-fetch current status at time of click (not stale closure)
+          current_a <- assignments()
+          current_status <- current_a[current_a$id == assignment_id, "status"]
           if (length(current_status) > 0 && current_status == "pending") {
             complete_assignment(assignment_id)
             shiny::showNotification("Chore completed! +points", type = "message", duration = 2)

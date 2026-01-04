@@ -506,7 +506,7 @@ create_assignment <- function(chore_id, member_id, assigned_date, due_time = NUL
     chore_id,
     member_id,
     as.character(assigned_date),
-    due_time
+    if (is.null(due_time)) NA_character_ else due_time
   ))
 
   result <- db_query("SELECT MAX(id) as id FROM chore_assignments")

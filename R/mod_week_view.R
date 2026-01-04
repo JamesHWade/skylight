@@ -159,6 +159,7 @@ mod_week_view_server <- function(id, events, selected_date, calendars) {
             if (holiday_info$is_holiday) "is-holiday",
             holiday_info$class
           ),
+          `data-date` = format(date, "%Y-%m-%d"),
           style = "display: flex; flex-direction: column; background: var(--bs-body-bg, #FDF8F3); min-height: 400px;",
           # Day header
           htmltools::div(
@@ -174,7 +175,14 @@ mod_week_view_server <- function(id, events, selected_date, calendars) {
             ),
             if (holiday_info$is_holiday) {
               htmltools::div(class = "holiday-name", holiday_info$name)
-            }
+            },
+            # Quick add button (visible on hover)
+            htmltools::tags$button(
+              type = "button",
+              class = "quick-add-btn",
+              title = "Add event",
+              bsicons::bs_icon("plus", size = "1rem")
+            )
           ),
           # Events container
           htmltools::div(

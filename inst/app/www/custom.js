@@ -486,6 +486,52 @@
   });
 
   // =========================================================================
+  // Quick Add Event - Day Click Handler
+  // =========================================================================
+
+  const handleDayClick = function(e) {
+    // Don't trigger if clicking on an event card
+    if (e.target.closest('[data-event-id]')) return;
+
+    // Find the day column or day cell
+    const dayElement = e.target.closest('.day-column, .month-day, .day-cell');
+    if (!dayElement) return;
+
+    // Extract date from the element
+    const dateAttr = dayElement.getAttribute('data-date');
+    if (!dateAttr) return;
+
+    // Trigger the quick add modal via Shiny
+    if (typeof Shiny !== 'undefined' && Shiny.setInputValue) {
+      Shiny.setInputValue('quick_add-quick_add_trigger', {
+        date: dateAttr,
+        timestamp: Date.now()
+      });
+    }
+  };
+
+  // Double-click to add event (more intentional than single click)
+  document.addEventListener('dblclick', handleDayClick);
+
+  // Also support a dedicated add button if present
+  document.addEventListener('click', function(e) {
+    const addBtn = e.target.closest('.quick-add-btn');
+    if (addBtn) {
+      e.stopPropagation();
+      const dayElement = addBtn.closest('.day-column, .month-day, .day-cell');
+      if (dayElement) {
+        const dateAttr = dayElement.getAttribute('data-date');
+        if (dateAttr && typeof Shiny !== 'undefined') {
+          Shiny.setInputValue('quick_add-quick_add_trigger', {
+            date: dateAttr,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+  });
+
+  // =========================================================================
   // Initialize on DOM Ready
   // =========================================================================
 

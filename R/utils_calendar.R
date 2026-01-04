@@ -281,3 +281,126 @@ cache_calendars <- function(calendars) {
   pkg_env[["calendars"]] <- calendars
   invisible(NULL)
 }
+
+#' Create a New Calendar Event
+#'
+#' Creates an event on Google Calendar using the Events.insert API.
+#'
+#' @param title Character. Event title/summary.
+#' @param start POSIXct or Date. Event start time. If Date, creates an all-day event.
+#' @param end POSIXct or Date. Event end time. Defaults to 1 hour after start for
+#'   timed events, or next day for all-day events.
+#' @param calendar_id Character. Calendar to add the event to.
+#'   Defaults to "primary" (user's main calendar).
+#' @param description Character. Optional event description.
+#' @param location Character. Optional event location.
+#' @param all_day Logical. Force all-day event. If NULL, determined by `start` class.
+#'
+#' @return A list with `success` (logical), `event` (created event data), and
+#'   `error` (error message if failed).
+#'
+#' @export
+#'
+#' @examples
+#' if (interactive() && is_authenticated()) {
+#'   # Create a 1-hour event
+#'   result <- create_event(
+#'     title = "Team Meeting",
+#'     start = Sys.time() + 3600,
+#'     calendar_id = "primary"
+#'   )
+#'
+#'   # Create an all-day event
+#'   result <- create_event(
+#'     title = "Vacation",
+#'     start = Sys.Date() + 7,
+#'     end = Sys.Date() + 14
+#'   )
+#' }
+create_event <- function(
+    title,
+    start,
+    end = NULL,
+    calendar_id = "primary",
+    description = NULL,
+    location = NULL,
+    all_day = NULL
+) {
+  token <- get_token()
+  if (is.null(token)) {
+    return(list(
+      success = FALSE,
+      event = NULL,
+      error = "Not authenticated. Call calendar_auth() first."
+    ))
+  }
+
+  # Determine if all-day event
+  is_all_day <- if (!is.null(all_day)) {
+    all_day
+  } else {
+    inherits(start, "Date") && !inherits(start, "POSIXt")
+  }
+
+  # Set default end time
+  if (is.null(end)) {
+    if (is_all_day) {
+      end <- as.Date(start) + 1
+    } else {
+      end <- as.POSIXct(start) + 3600  # 1 hour later
+    }
+  }
+
+  # Build event body
+  event_body <- list(
+    summary = title
+  )
+
+  # Add start/end in correct format
+  if (is_all_day) {
+    event_body$start <- list(date = format(as.Date(start), "%Y-%m-%d"))
+    event_body$end <- list(date = format(as.Date(end), "%Y-%m-%d"))
+  } else {
+    # Convert to RFC3339 format
+    start_dt <- as.POSIXct(start)
+    end_dt <- as.POSIXct(end)
+    event_body$start <- list(dateTime = format(start_dt, "%Y-%m-%dT%H:%M:%S%z"))
+    event_body$end <- list(dateTime = format(end_dt, "%Y-%m-%dT%H:%M:%S%z"))
+  }
+
+  # Add optional fields
+  if (!is.null(description) && nzchar(description)) {
+    event_body$description <- description
+  }
+  if (!is.null(location) && nzchar(location)) {
+    event_body$location <- location
+  }
+
+  # Make API request
+  tryCatch({
+    encoded_id <- utils::URLencode(calendar_id, reserved = TRUE)
+    url <- glue::glue(
+      "https://www.googleapis.com/calendar/v3/calendars/{encoded_id}/events"
+    )
+
+    resp <- httr2::request(url) |>
+      httr2::req_auth_bearer_token(token$access_token) |>
+      httr2::req_body_json(event_body) |>
+      httr2::req_method("POST") |>
+      httr2::req_perform()
+
+    created_event <- httr2::resp_body_json(resp)
+
+    list(
+      success = TRUE,
+      event = created_event,
+      error = NULL
+    )
+  }, error = function(e) {
+    list(
+      success = FALSE,
+      event = NULL,
+      error = conditionMessage(e)
+    )
+  })
+}

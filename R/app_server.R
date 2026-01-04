@@ -96,6 +96,11 @@ app_server <- function(input, output, session) {
   mod_clock_server("clock")
   mod_weather_server("weather", root_session = session)
   mod_chat_server("chat", events = events, calendars = calendars, selected_date = selected_date)
+
+  # Quick add event module (only in authenticated mode)
+  if (!demo_mode) {
+    mod_quick_add_server("quick_add", calendars = calendars, refresh_trigger = refresh_trigger)
+  }
 }
 
 #' Dark Mode Theme

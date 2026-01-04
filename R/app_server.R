@@ -95,7 +95,14 @@ app_server <- function(input, output, session) {
   # Widget modules
   mod_clock_server("clock")
   mod_weather_server("weather", root_session = session)
-  mod_chat_server("chat", events = events, calendars = calendars, selected_date = selected_date)
+  mod_chat_server(
+    "chat",
+    events = events,
+    calendars = calendars,
+    selected_date = selected_date,
+    refresh_trigger = refresh_trigger,
+    can_create_events = !demo_mode
+  )
 
   # Quick add event module (only in authenticated mode)
   if (!demo_mode) {

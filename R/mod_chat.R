@@ -58,7 +58,7 @@ mod_chat_ui <- function(id) {
         lapply(
           c(
             "What's on my calendar today?",
-            "Any conflicts this week?",
+            "Add soccer practice Tuesday 4pm",
             "When am I free tomorrow?"
           ),
           function(suggestion) {
@@ -80,9 +80,12 @@ mod_chat_ui <- function(id) {
 #' @param events Reactive containing event data
 #' @param calendars Reactive containing calendar list
 #' @param selected_date Reactive value for selected date
+#' @param refresh_trigger Reactive value to trigger calendar refresh after event creation
+#' @param can_create_events Logical. Whether the chat can create events (FALSE in demo mode)
 #'
 #' @keywords internal
-mod_chat_server <- function(id, events, calendars, selected_date) {
+mod_chat_server <- function(id, events, calendars, selected_date,
+                            refresh_trigger = NULL, can_create_events = TRUE) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -92,11 +95,23 @@ mod_chat_server <- function(id, events, calendars, selected_date) {
     # Track chat initialization errors for user feedback
     chat_error <- shiny::reactiveVal(NULL)
 
+    # Track event creation callback for tool use
+    on_event_created <- function() {
+      if (!is.null(refresh_trigger)) {
+        refresh_trigger(refresh_trigger() + 1)
+      }
+    }
+
     # Initialize chat with ellmer (requires ANTHROPIC_API_KEY)
     chat <- shiny::reactive({
       tryCatch({
         chat_error(NULL)
-        create_calendar_chat(events(), calendars())
+        create_calendar_chat(
+          events = events(),
+          calendars = calendars(),
+          can_create_events = can_create_events,
+          on_event_created = on_event_created
+        )
       }, error = function(e) {
         error_msg <- conditionMessage(e)
         warning("Chat initialization failed: ", error_msg, call. = FALSE)
@@ -117,7 +132,7 @@ mod_chat_server <- function(id, events, calendars, selected_date) {
             htmltools::h5("Hi! I'm your calendar assistant."),
             htmltools::p(
               class = "text-muted",
-              "Ask me about your schedule, find free time, or get a summary of upcoming events."
+              "Ask me about your schedule, find free time, or add new events using natural language."
             )
           )
         )
@@ -146,7 +161,7 @@ mod_chat_server <- function(id, events, calendars, selected_date) {
     shiny::observe({
       suggestions <- c(
         "What's on my calendar today?",
-        "Any conflicts this week?",
+        "Add soccer practice Tuesday 4pm",
         "When am I free tomorrow?"
       )
       lapply(suggestions, function(suggestion) {
@@ -271,15 +286,19 @@ render_chat_message <- function(msg) {
 
 #' Create Calendar Chat Instance
 #'
-#' Initialize an ellmer chat with calendar context.
+#' Initialize an ellmer chat with calendar context and optional event creation tool.
 #'
 #' @param events Current events data
 #' @param calendars Current calendars list
+#' @param can_create_events Logical. Whether to enable event creation tool.
+#' @param on_event_created Callback function to run after event creation.
 #'
 #' @return An ellmer chat object
 #'
 #' @keywords internal
-create_calendar_chat <- function(events, calendars) {
+create_calendar_chat <- function(events, calendars,
+                                  can_create_events = TRUE,
+                                  on_event_created = NULL) {
   # Build context about current calendar state
   today <- Sys.Date()
   events_summary <- if (!is.null(events) && nrow(events) > 0) {
@@ -291,6 +310,35 @@ create_calendar_chat <- function(events, calendars) {
     "The user's calendar appears to be empty for the current view."
   }
 
+  # Build calendar list for tool context
+  calendar_list <- if (!is.null(calendars) && nrow(calendars) > 0) {
+    paste(
+      "Available calendars:",
+      paste(sprintf("- %s (id: %s)", calendars$name, calendars$id), collapse = "\n")
+    )
+  } else {
+    "Available calendars: primary"
+  }
+
+  # Capabilities depend on whether event creation is enabled
+  capabilities <- if (can_create_events) {
+    "Your capabilities:
+    - Answer questions about the user's schedule
+    - Summarize upcoming events
+    - Identify scheduling conflicts
+    - Find free time slots
+    - Provide reminders about important events
+    - CREATE NEW EVENTS when the user asks (use the create_calendar_event tool)"
+  } else {
+    "Your capabilities:
+    - Answer questions about the user's schedule
+    - Summarize upcoming events
+    - Identify scheduling conflicts
+    - Find free time slots
+    - Provide reminders about important events
+    Note: Event creation is not available in demo mode."
+  }
+
   system_prompt <- glue::glue("
     You are a helpful family calendar assistant for the Skylight calendar app.
 
@@ -299,12 +347,9 @@ create_calendar_chat <- function(events, calendars) {
     Calendar context:
     {events_summary}
 
-    Your capabilities:
-    - Answer questions about the user's schedule
-    - Summarize upcoming events
-    - Identify scheduling conflicts
-    - Find free time slots
-    - Provide reminders about important events
+    {calendar_list}
+
+    {capabilities}
 
     Guidelines:
     - Be concise and friendly
@@ -312,12 +357,167 @@ create_calendar_chat <- function(events, calendars) {
     - Format times in a readable way (e.g., '2:30 PM')
     - If you don't have enough information, ask for clarification
     - Focus on being helpful for a family with busy schedules
+    - When creating events, confirm the details with a brief summary after creation
   ")
 
   # Create ellmer chat
-  ellmer::chat_claude(
+  chat_obj <- ellmer::chat_claude(
     system_prompt = system_prompt,
     model = "claude-sonnet-4-20250514"
+  )
+
+  # Register event creation tool if enabled
+
+  if (can_create_events) {
+    # Get primary calendar ID for default
+    primary_calendar <- if (!is.null(calendars) && nrow(calendars) > 0) {
+      primary_idx <- which(calendars$primary)
+      if (length(primary_idx) > 0) calendars$id[primary_idx[1]] else "primary"
+    } else {
+      "primary"
+    }
+
+    # Create the event creation tool
+    event_tool <- create_event_tool(
+      default_calendar = primary_calendar,
+      on_success = on_event_created
+    )
+
+    chat_obj$register_tool(event_tool)
+  }
+
+  chat_obj
+}
+
+#' Create Event Tool for Chat
+#'
+#' Creates an ellmer tool definition for calendar event creation.
+#'
+#' @param default_calendar Default calendar ID to use
+#' @param on_success Callback to run on successful event creation
+#'
+#' @return An ellmer tool definition
+#'
+#' @keywords internal
+create_event_tool <- function(default_calendar = "primary", on_success = NULL) {
+  # The actual function that creates events
+
+  create_event_fn <- function(title, start_datetime, end_datetime = NULL,
+                              all_day = FALSE, calendar_id = NULL,
+                              location = NULL, description = NULL) {
+    # Use default calendar if not specified
+    if (is.null(calendar_id) || calendar_id == "") {
+      calendar_id <- default_calendar
+    }
+
+    # Parse datetime strings
+    start <- tryCatch({
+      if (all_day) {
+        as.Date(start_datetime)
+      } else {
+        lubridate::ymd_hm(start_datetime, tz = Sys.timezone())
+      }
+    }, error = function(e) {
+      stop("Could not parse start time '", start_datetime, "'. ",
+           "Use format: YYYY-MM-DD HH:MM (e.g., 2025-01-15 14:30)")
+    })
+
+    end <- if (!is.null(end_datetime) && end_datetime != "") {
+      tryCatch({
+        if (all_day) {
+          as.Date(end_datetime)
+        } else {
+          lubridate::ymd_hm(end_datetime, tz = Sys.timezone())
+        }
+      }, error = function(e) {
+        # Default to 1 hour later for timed events
+        if (all_day) start + 1 else start + 3600
+      })
+    } else {
+      # Default duration
+      if (all_day) start + 1 else start + 3600
+    }
+
+    # Call the actual create_event function
+    result <- create_event(
+      title = title,
+      start = start,
+      end = end,
+      calendar_id = calendar_id,
+      description = description,
+      location = location,
+      all_day = all_day
+    )
+
+    if (result$success) {
+      # Run callback if provided
+      if (!is.null(on_success)) {
+        on_success()
+      }
+
+      # Format success message
+      time_str <- if (all_day) {
+        format(as.Date(start), "%A, %B %d, %Y")
+      } else {
+        format(start, "%A, %B %d at %I:%M %p")
+      }
+
+      paste0(
+        "Successfully created event '", title, "' for ", time_str, ".",
+        if (!is.null(location) && location != "") paste0(" Location: ", location) else ""
+      )
+    } else {
+      paste0("Failed to create event: ", result$error)
+    }
+  }
+
+  # Define the tool with ellmer
+  ellmer::tool(
+    create_event_fn,
+    name = "create_calendar_event",
+    description = paste(
+      "Create a new event on the user's Google Calendar.",
+      "Use this when the user asks to add, create, or schedule an event.",
+      "Always confirm the event details after successful creation."
+    ),
+    arguments = list(
+      title = ellmer::type_string(
+        "The event title/name (e.g., 'Soccer Practice', 'Doctor Appointment')",
+        required = TRUE
+      ),
+      start_datetime = ellmer::type_string(
+        paste(
+          "Start date and time in format 'YYYY-MM-DD HH:MM' (e.g., '2025-01-15 14:30').",
+          "For all-day events, use just the date 'YYYY-MM-DD'.",
+          "Convert relative dates like 'tomorrow' or 'next Tuesday' to actual dates."
+        ),
+        required = TRUE
+      ),
+      end_datetime = ellmer::type_string(
+        paste(
+          "End date and time in format 'YYYY-MM-DD HH:MM'.",
+          "Optional - defaults to 1 hour after start for timed events,",
+          "or next day for all-day events."
+        ),
+        required = FALSE
+      ),
+      all_day = ellmer::type_boolean(
+        "Whether this is an all-day event (no specific time)",
+        required = FALSE
+      ),
+      calendar_id = ellmer::type_string(
+        "The calendar ID to add the event to. Leave empty to use the primary calendar.",
+        required = FALSE
+      ),
+      location = ellmer::type_string(
+        "Optional location for the event",
+        required = FALSE
+      ),
+      description = ellmer::type_string(
+        "Optional description or notes for the event",
+        required = FALSE
+      )
+    )
   )
 }
 

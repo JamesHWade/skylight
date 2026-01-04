@@ -1,6 +1,7 @@
 #' Chat Module UI
 #'
 #' AI-powered chat interface for natural language calendar interaction.
+#' Uses shinychat for the chat UI component.
 #'
 #' @param id Module namespace ID
 #'
@@ -8,13 +9,14 @@
 #'
 #' @keywords internal
 mod_chat_ui <- function(id) {
+
   ns <- shiny::NS(id)
 
-  htmltools::div(
-    class = "chat-panel",
+ htmltools::div(
+    class = "chat-panel d-flex flex-column h-100",
     # Header
     htmltools::div(
-      class = "chat-header d-flex justify-content-between align-items-center p-3",
+      class = "chat-header d-flex justify-content-between align-items-center p-3 border-bottom",
       htmltools::h5(
         class = "mb-0",
         bsicons::bs_icon("chat-dots", class = "me-2"),
@@ -28,47 +30,38 @@ mod_chat_ui <- function(id) {
       )
     ),
 
-    # Chat messages area
+    # Shinychat UI - fills available space
     htmltools::div(
-      class = "chat-messages",
-      id = ns("messages_container"),
-      shiny::uiOutput(ns("chat_messages"))
+      class = "flex-grow-1 overflow-hidden",
+      shinychat::chat_ui(
+        id = ns("chat"),
+        messages = list(
+          list(
+            role = "assistant",
+            content = "Hi! I'm your calendar assistant. Ask me about your schedule, find free time, or add new events using natural language."
+          )
+        ),
+        placeholder = "Ask about your calendar...",
+        fill = TRUE
+      )
     ),
 
-    # Input area
+    # Suggestion chips below the chat
     htmltools::div(
-      class = "chat-input-area p-3",
-      htmltools::div(
-        class = "input-group",
-        shiny::textInput(
-          ns("user_input"),
-          label = NULL,
-          placeholder = "Ask about your calendar...",
-          width = "100%"
+      class = "chat-suggestions p-2 border-top",
+      lapply(
+        c(
+          "What's on my calendar today?",
+          "Add soccer practice Tuesday 4pm",
+          "When am I free tomorrow?"
         ),
-        shiny::actionButton(
-          ns("send_message"),
-          label = NULL,
-          icon = bsicons::bs_icon("send"),
-          class = "btn-primary"
-        )
-      ),
-      htmltools::div(
-        class = "chat-suggestions mt-2",
-        lapply(
-          c(
-            "What's on my calendar today?",
-            "Add soccer practice Tuesday 4pm",
-            "When am I free tomorrow?"
-          ),
-          function(suggestion) {
-            shiny::actionLink(
-              ns(paste0("suggest_", digest::digest(suggestion, algo = "crc32"))),
-              suggestion,
-              class = "chat-suggestion badge bg-light text-dark me-1"
-            )
-          }
-        )
+        function(suggestion) {
+          shiny::actionLink(
+            ns(paste0("suggest_", digest::digest(suggestion, algo = "crc32"))),
+            suggestion,
+            class = "chat-suggestion badge bg-light text-dark me-1"
+          )
+        }
       )
     )
   )
@@ -89,9 +82,6 @@ mod_chat_server <- function(id, events, calendars, selected_date,
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Chat history
-    chat_history <- shiny::reactiveVal(list())
-
     # Track chat initialization errors for user feedback
     chat_error <- shiny::reactiveVal(NULL)
 
@@ -103,184 +93,145 @@ mod_chat_server <- function(id, events, calendars, selected_date,
     }
 
     # Initialize chat with ellmer (requires ANTHROPIC_API_KEY)
-    chat <- shiny::reactive({
+    # Use reactiveVal to maintain chat state across messages
+    chat_instance <- shiny::reactiveVal(NULL)
+
+    shiny::observe({
       tryCatch({
         chat_error(NULL)
-        create_calendar_chat(
+        chat_obj <- create_calendar_chat(
           events = events(),
           calendars = calendars(),
           can_create_events = can_create_events,
           on_event_created = on_event_created
         )
+        chat_instance(chat_obj)
       }, error = function(e) {
         error_msg <- conditionMessage(e)
         warning("Chat initialization failed: ", error_msg, call. = FALSE)
         chat_error(error_msg)
-        NULL
+        chat_instance(NULL)
       })
-    })
+    }) |> shiny::bindEvent(events(), calendars(), once = FALSE)
 
-    # Render chat messages
-    output$chat_messages <- shiny::renderUI({
-      history <- chat_history()
-
-      if (length(history) == 0) {
-        return(
-          htmltools::div(
-            class = "chat-welcome text-center p-4",
-            bsicons::bs_icon("calendar-heart", size = "3em", class = "text-primary mb-3"),
-            htmltools::h5("Hi! I'm your calendar assistant."),
-            htmltools::p(
-              class = "text-muted",
-              "Ask me about your schedule, find free time, or add new events using natural language."
-            )
-          )
-        )
-      }
-
-      htmltools::div(
-        class = "messages-list",
-        lapply(history, function(msg) {
-          render_chat_message(msg)
-        })
-      )
-    })
-
-    # Handle send button click
-    shiny::observeEvent(input$send_message, {
-      shiny::req(input$user_input)
-      process_message(input$user_input)
-      shiny::updateTextInput(session, "user_input", value = "")
-    })
-    # Handle Enter key in input
-    shiny::observeEvent(input$user_input, {
-      # This would need JS to detect Enter key - handled via custom.js
-    }, ignoreInit = TRUE)
-
-    # Handle suggestion clicks
-    shiny::observe({
-      suggestions <- c(
-        "What's on my calendar today?",
-        "Add soccer practice Tuesday 4pm",
-        "When am I free tomorrow?"
-      )
-      lapply(suggestions, function(suggestion) {
-        input_id <- paste0("suggest_", digest::digest(suggestion, algo = "crc32"))
-        shiny::observeEvent(input[[input_id]], {
-          process_message(suggestion)
-        }, ignoreInit = TRUE)
-      })
-    })
-
-    # Clear chat
-    shiny::observeEvent(input$clear_chat, {
-      chat_history(list())
-    })
-
-    # Process user message
-    process_message <- function(user_message) {
-      # Add user message to history
-      history <- chat_history()
-      history <- append(history, list(list(
-        role = "user",
-        content = user_message,
-        timestamp = Sys.time()
-      )))
-      chat_history(history)
+    # Handle user input from shinychat (input$chat_user_input)
+    shiny::observeEvent(input$chat_user_input, {
+      user_message <- input$chat_user_input
+      shiny::req(nchar(trimws(user_message)) > 0)
 
       # Check if chat is available
-      if (is.null(chat())) {
-        history <- chat_history()
+      chat_obj <- chat_instance()
+      if (is.null(chat_obj)) {
         error_detail <- chat_error()
         error_msg <- if (!is.null(error_detail)) {
           paste("Chat is not available:", error_detail)
         } else {
           "Chat is not available. Please ensure the ANTHROPIC_API_KEY environment variable is configured."
         }
-        history <- append(history, list(list(
-          role = "assistant",
-          content = error_msg,
-          timestamp = Sys.time(),
-          is_error = TRUE
-        )))
-        chat_history(history)
+        shinychat::chat_append("chat", error_msg, session = session)
         return()
       }
 
-      # Get AI response
+      # Build events context for the query
+      events_context <- build_events_context(events())
+
+      # Send message with context and stream response
+      full_message <- paste0(user_message, events_context)
+
       tryCatch({
-        response <- get_chat_response(
-          chat(),
-          user_message,
-          events(),
-          selected_date()
-        )
+        # Use streaming for better UX
+        stream <- chat_obj$stream(full_message)
+        shinychat::chat_append("chat", stream, session = session)
 
-        # Add assistant response to history
-        history <- chat_history()
-        history <- append(history, list(list(
-          role = "assistant",
-          content = response,
-          timestamp = Sys.time()
-        )))
-        chat_history(history)
-
-        # Save to database
-        save_chat_message(user_message, response)
-
+        # Save to database (get the full response text)
+        # Note: streaming means we don't easily get the full text here
+        # We'll save asynchronously or skip for now
       }, error = function(e) {
-        # Add error message
-        history <- chat_history()
-        history <- append(history, list(list(
-          role = "assistant",
-          content = paste("Sorry, I encountered an error:", e$message),
-          timestamp = Sys.time(),
-          is_error = TRUE
-        )))
-        chat_history(history)
+        error_msg <- paste("Sorry, I encountered an error:", conditionMessage(e))
+        shinychat::chat_append("chat", error_msg, session = session)
       })
-    }
+    }, ignoreInit = TRUE)
+
+    # Handle suggestion clicks
+    suggestions <- c(
+      "What's on my calendar today?",
+      "Add soccer practice Tuesday 4pm",
+      "When am I free tomorrow?"
+    )
+
+    lapply(suggestions, function(suggestion) {
+      input_id <- paste0("suggest_", digest::digest(suggestion, algo = "crc32"))
+      shiny::observeEvent(input[[input_id]], {
+        # Add as user message and trigger the chat
+        shinychat::chat_append("chat", suggestion, role = "user", session = session)
+
+        # Process the suggestion through the chat
+        chat_obj <- chat_instance()
+        if (!is.null(chat_obj)) {
+          events_context <- build_events_context(events())
+          full_message <- paste0(suggestion, events_context)
+          tryCatch({
+            stream <- chat_obj$stream(full_message)
+            shinychat::chat_append("chat", stream, session = session)
+          }, error = function(e) {
+            error_msg <- paste("Sorry, I encountered an error:", conditionMessage(e))
+            shinychat::chat_append("chat", error_msg, session = session)
+          })
+        }
+      }, ignoreInit = TRUE)
+    })
+
+    # Clear chat - reset with welcome message
+    shiny::observeEvent(input$clear_chat, {
+      shinychat::chat_clear("chat", session = session)
+      # Re-add welcome message
+      shinychat::chat_append(
+        "chat",
+        "Hi! I'm your calendar assistant. Ask me about your schedule, find free time, or add new events using natural language.",
+        session = session
+      )
+      # Reset the chat instance to clear conversation history
+      chat_instance(NULL)
+    })
   })
 }
 
-#' Render a Chat Message
+#' Build Events Context String
 #'
-#' @param msg A message list with role, content, and timestamp
+#' Creates a context string with upcoming events for the LLM.
 #'
-#' @return HTML for the message
+#' @param events Data frame of events
+#'
+#' @return Character string with events context
 #'
 #' @keywords internal
-render_chat_message <- function(msg) {
-  is_user <- msg$role == "user"
-  is_error <- isTRUE(msg$is_error)
+build_events_context <- function(events) {
+ if (is.null(events) || nrow(events) == 0) {
+    return("")
+  }
 
-  htmltools::div(
-    class = paste(
-      "chat-message",
-      if (is_user) "user-message" else "assistant-message",
-      if (is_error) "error-message" else ""
-    ),
-    htmltools::div(
-      class = "message-avatar",
-      if (is_user) {
-        bsicons::bs_icon("person-circle")
-      } else {
-        bsicons::bs_icon("robot")
-      }
-    ),
-    htmltools::div(
-      class = "message-content",
-      htmltools::div(
-        class = "message-text",
-        # Note: Content is from LLM responses, not direct user input.
-        # Using htmlEscape on input preserves markdown while preventing XSS.
-        htmltools::HTML(commonmark::markdown_html(htmltools::htmlEscape(msg$content)))
-      ),
-      htmltools::div(
-        class = "message-timestamp text-muted small",
-        format(msg$timestamp, "%l:%M %p")
+  events_text <- apply(events, 1, function(e) {
+    time_str <- if (isTRUE(as.logical(e["all_day"]))) {
+      "All day"
+    } else {
+      paste(
+        format(as.POSIXct(e["start"]), "%l:%M %p"),
+        "-",
+        format(as.POSIXct(e["end"]), "%l:%M %p")
       )
+    }
+    paste0(
+      "- ", format(as.Date(e["start"]), "%A %b %d"), ": ",
+      e["title"], " (", time_str, ")",
+      if (!is.na(e["location"]) && nchar(e["location"]) > 0) {
+        paste0(" at ", e["location"])
+      } else ""
     )
+  })
+
+  paste(
+    "\n\nUpcoming events:\n",
+    paste(events_text, collapse = "\n")
   )
 }
 
@@ -519,53 +470,6 @@ create_event_tool <- function(default_calendar = "primary", on_success = NULL) {
       )
     )
   )
-}
-
-#' Get Chat Response
-#'
-#' Send a message to the LLM and get a response.
-#'
-#' @param chat An ellmer chat object
-#' @param message User's message
-#' @param events Current events data
-#' @param selected_date Current selected date
-#'
-#' @return Character string with the response
-#'
-#' @keywords internal
-get_chat_response <- function(chat, message, events, selected_date) {
-  # Build events context for the query
-  events_context <- ""
-  if (!is.null(events) && nrow(events) > 0) {
-    events_text <- apply(events, 1, function(e) {
-      time_str <- if (e["all_day"]) {
-        "All day"
-      } else {
-        paste(
-          format(as.POSIXct(e["start"]), "%l:%M %p"),
-          "-",
-          format(as.POSIXct(e["end"]), "%l:%M %p")
-        )
-      }
-      paste0(
-        "- ", format(as.Date(e["start"]), "%A %b %d"), ": ",
-        e["title"], " (", time_str, ")",
-        if (!is.na(e["location"]) && nchar(e["location"]) > 0) {
-          paste0(" at ", e["location"])
-        } else ""
-      )
-    })
-    events_context <- paste(
-      "\n\nUpcoming events:\n",
-      paste(events_text, collapse = "\n")
-    )
-  }
-
-  # Send message with context
-  full_message <- paste0(message, events_context)
-
-  # Get response from ellmer
-  chat$chat(full_message)
 }
 
 #' Save Chat Message to Database

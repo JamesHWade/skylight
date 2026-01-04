@@ -321,16 +321,54 @@ mod_chores_server <- function(id, family_members = NULL) {
         return()
       }
 
+      # Build recurrence rule from form inputs
+      recurrence_type <- input$recurrence_type
+      recurrence_rule <- NULL
+
+      if (!is.null(recurrence_type) && recurrence_type != "once") {
+        # Build the recurrence rule
+        rule_params <- list(
+          type = recurrence_type,
+          interval = as.integer(input$recurrence_interval %||% 1),
+          end_type = input$end_type %||% "never",
+          start_date = Sys.Date()
+        )
+
+        # Add end conditions
+        if (rule_params$end_type == "after") {
+          rule_params$end_count <- as.integer(input$end_count %||% 10)
+        } else if (rule_params$end_type == "by_date") {
+          rule_params$end_date <- input$end_date
+        }
+
+        # Type-specific options
+        if (recurrence_type == "daily") {
+          rule_params$by_weekday <- isTRUE(input$weekdays_only)
+        } else if (recurrence_type == "weekly") {
+          rule_params$by_days <- input$recurrence_days
+        } else if (recurrence_type == "monthly") {
+          if (input$monthly_type == "day_of_month") {
+            rule_params$by_month_day <- as.integer(input$month_day %||% 1)
+          } else {
+            rule_params$by_week_num <- as.integer(input$week_num %||% 1)
+            rule_params$by_weekday_name <- input$weekday_name %||% "monday"
+          }
+        }
+
+        recurrence_rule <- do.call(create_recurrence_rule, rule_params)
+      }
+
       # Create the chore (use generated icon if available)
       icon_data <- generated_icon()
       chore_id <- create_chore(
         title = title,
         description = input$chore_description,
         points = as.integer(input$chore_points),
-        frequency = input$chore_frequency,
+        frequency = recurrence_type %||% "daily",
         category = input$chore_category,
         icon_emoji = input$chore_icon,
-        icon_base64 = if (!is.null(icon_data) && nchar(icon_data) > 0) icon_data else NULL
+        icon_base64 = if (!is.null(icon_data) && nchar(icon_data) > 0) icon_data else NULL,
+        recurrence_rule = recurrence_rule
       )
 
       # Create assignments for selected members
@@ -343,7 +381,18 @@ mod_chores_server <- function(id, family_members = NULL) {
 
       refresh_trigger(refresh_trigger() + 1)
       shiny::removeModal()
-      shiny::showNotification(paste("Chore", shQuote(title), "created!"), type = "message")
+
+      # Show confirmation with recurrence description
+      if (!is.null(recurrence_rule)) {
+        desc <- format_recurrence(recurrence_rule)
+        shiny::showNotification(
+          paste("Chore", shQuote(title), "created!", desc),
+          type = "message",
+          duration = 4
+        )
+      } else {
+        shiny::showNotification(paste("Chore", shQuote(title), "created!"), type = "message")
+      }
     })
 
     # Manage all chores modal
@@ -397,7 +446,13 @@ mod_chores_server <- function(id, family_members = NULL) {
                 htmltools::div(class = "fw-medium", chore$title),
                 htmltools::div(
                   class = "small text-muted",
-                  paste0(chore$points, " pts • ", chore$frequency)
+                  paste0(chore$points, " pts • ",
+                         if (!is.null(chore$recurrence_rule) && !is.na(chore$recurrence_rule) &&
+                             nchar(chore$recurrence_rule) > 0) {
+                           format_recurrence(chore$recurrence_rule)
+                         } else {
+                           chore$frequency
+                         })
                 )
               )
             ),
@@ -800,6 +855,17 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
     NULL
   }
 
+  # Day name choices for weekly recurrence
+  day_choices <- c(
+    "Monday" = "monday",
+    "Tuesday" = "tuesday",
+    "Wednesday" = "wednesday",
+    "Thursday" = "thursday",
+    "Friday" = "friday",
+    "Saturday" = "saturday",
+    "Sunday" = "sunday"
+  )
+
   htmltools::tagList(
     shiny::textInput(
       ns("chore_title"),
@@ -822,29 +888,192 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
       htmltools::div(
         class = "col-6",
         shiny::selectInput(
-          ns("chore_frequency"),
-          "Frequency",
+          ns("chore_category"),
+          "Category",
           choices = c(
-            "Daily" = "daily",
-            "Weekly" = "weekly",
-            "Monthly" = "monthly",
-            "One-time" = "once"
+            "General" = "general",
+            "Kitchen" = "kitchen",
+            "Bedroom" = "bedroom",
+            "Bathroom" = "bathroom",
+            "Outdoor" = "outdoor"
           ),
-          selected = freq_val
+          selected = cat_val
         )
       )
     ),
-    shiny::selectInput(
-      ns("chore_category"),
-      "Category",
-      choices = c(
-        "General" = "general",
-        "Kitchen" = "kitchen",
-        "Bedroom" = "bedroom",
-        "Bathroom" = "bathroom",
-        "Outdoor" = "outdoor"
+    # Recurrence section
+    htmltools::div(
+      class = "recurrence-section mb-3 p-3 border rounded",
+      htmltools::tags$label(class = "form-label fw-medium", "Repeats"),
+      htmltools::div(
+        class = "row g-2",
+        htmltools::div(
+          class = "col-6",
+          shiny::selectInput(
+            ns("recurrence_type"),
+            NULL,
+            choices = c(
+              "Daily" = "daily",
+              "Weekly" = "weekly",
+              "Monthly" = "monthly",
+              "One-time" = "once"
+            ),
+            selected = freq_val
+          )
+        ),
+        htmltools::div(
+          class = "col-6",
+          shiny::numericInput(
+            ns("recurrence_interval"),
+            NULL,
+            value = 1,
+            min = 1,
+            max = 99
+          ) |> htmltools::tagAppendAttributes(
+            class = "interval-input",
+            placeholder = "Every X"
+          )
+        )
       ),
-      selected = cat_val
+      # Daily options
+      shiny::conditionalPanel(
+        condition = sprintf("input['%s'] == 'daily'", ns("recurrence_type")),
+        ns = ns,
+        htmltools::div(
+          class = "mt-2",
+          shiny::checkboxInput(
+            ns("weekdays_only"),
+            "Weekdays only (Mon-Fri)",
+            value = FALSE
+          )
+        )
+      ),
+      # Weekly options
+      shiny::conditionalPanel(
+        condition = sprintf("input['%s'] == 'weekly'", ns("recurrence_type")),
+        ns = ns,
+        htmltools::div(
+          class = "mt-2",
+          htmltools::tags$label(class = "form-label small", "On these days:"),
+          shiny::checkboxGroupInput(
+            ns("recurrence_days"),
+            NULL,
+            choices = day_choices,
+            selected = NULL,
+            inline = TRUE
+          ) |> htmltools::tagAppendAttributes(class = "day-picker")
+        )
+      ),
+      # Monthly options
+      shiny::conditionalPanel(
+        condition = sprintf("input['%s'] == 'monthly'", ns("recurrence_type")),
+        ns = ns,
+        htmltools::div(
+          class = "mt-2",
+          shiny::radioButtons(
+            ns("monthly_type"),
+            NULL,
+            choices = c(
+              "Day of month" = "day_of_month",
+              "Specific weekday" = "nth_weekday"
+            ),
+            selected = "day_of_month",
+            inline = TRUE
+          ),
+          # Day of month option
+          shiny::conditionalPanel(
+            condition = sprintf("input['%s'] == 'day_of_month'", ns("monthly_type")),
+            ns = ns,
+            htmltools::div(
+              class = "d-flex align-items-center gap-2 mt-2",
+              htmltools::span("On day"),
+              shiny::numericInput(
+                ns("month_day"),
+                NULL,
+                value = 1,
+                min = 1,
+                max = 31,
+                width = "80px"
+              ),
+              htmltools::span("of the month")
+            )
+          ),
+          # Nth weekday option
+          shiny::conditionalPanel(
+            condition = sprintf("input['%s'] == 'nth_weekday'", ns("monthly_type")),
+            ns = ns,
+            htmltools::div(
+              class = "d-flex align-items-center gap-2 mt-2 flex-wrap",
+              htmltools::span("On the"),
+              shiny::selectInput(
+                ns("week_num"),
+                NULL,
+                choices = c(
+                  "1st" = "1",
+                  "2nd" = "2",
+                  "3rd" = "3",
+                  "4th" = "4",
+                  "Last" = "-1"
+                ),
+                selected = "1",
+                width = "80px"
+              ),
+              shiny::selectInput(
+                ns("weekday_name"),
+                NULL,
+                choices = day_choices,
+                selected = "monday",
+                width = "120px"
+              )
+            )
+          )
+        )
+      ),
+      # End condition
+      htmltools::div(
+        class = "mt-3 pt-2 border-top",
+        htmltools::tags$label(class = "form-label small", "Ends"),
+        shiny::radioButtons(
+          ns("end_type"),
+          NULL,
+          choices = c(
+            "Never" = "never",
+            "After" = "after",
+            "On date" = "by_date"
+          ),
+          selected = "never",
+          inline = TRUE
+        ),
+        shiny::conditionalPanel(
+          condition = sprintf("input['%s'] == 'after'", ns("end_type")),
+          ns = ns,
+          htmltools::div(
+            class = "d-flex align-items-center gap-2 mt-2",
+            shiny::numericInput(
+              ns("end_count"),
+              NULL,
+              value = 10,
+              min = 1,
+              max = 999,
+              width = "80px"
+            ),
+            htmltools::span("occurrences")
+          )
+        ),
+        shiny::conditionalPanel(
+          condition = sprintf("input['%s'] == 'by_date'", ns("end_type")),
+          ns = ns,
+          htmltools::div(
+            class = "mt-2",
+            shiny::dateInput(
+              ns("end_date"),
+              NULL,
+              value = Sys.Date() + 365,
+              min = Sys.Date()
+            )
+          )
+        )
+      )
     ),
     # Icon section - AI generated is primary, emoji is fallback
     htmltools::div(

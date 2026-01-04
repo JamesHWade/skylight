@@ -10,8 +10,9 @@ uncomplete_assignment(assignment_id)
 \item{assignment_id}{The assignment ID.}
 }
 \value{
-TRUE on success.
+A list with \code{success} (TRUE/FALSE).
 }
 \description{
 Reverts a completed assignment back to pending.
+Uses atomic conditional update to prevent race conditions.
 }

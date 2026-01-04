@@ -14,8 +14,9 @@ complete_assignment(assignment_id, notes = NULL, verified_by = NULL)
 \item{verified_by}{Optional member ID who verified.}
 }
 \value{
-The completion record ID.
+A list with \code{success} (TRUE/FALSE) and \code{completion_id} (if success).
 }
 \description{
 Marks an assignment as completed and records the completion.
+Uses atomic conditional update to prevent race conditions.
 }

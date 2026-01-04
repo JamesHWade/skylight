@@ -12,7 +12,9 @@ create_chore(
   frequency_days = NULL,
   category = "general",
   estimated_minutes = 15,
-  icon_emoji = "🧹"
+  icon_emoji = "🧹",
+  icon_base64 = NULL,
+  recurrence_rule = NULL
 )
 }
 \arguments{
@@ -24,13 +26,17 @@ create_chore(
 
 \item{frequency}{How often: 'daily', 'weekly', 'monthly', 'once' (default: 'daily').}
 
-\item{frequency_days}{For weekly: which days (JSON array like '\link{"monday","wednesday"}').}
+\item{frequency_days}{For weekly: which days (JSON array, e.g. \code{'["monday","wednesday"]'}).}
 
 \item{category}{Category: 'kitchen', 'bedroom', 'bathroom', 'outdoor', 'general'.}
 
 \item{estimated_minutes}{Estimated time in minutes (default: 15).}
 
 \item{icon_emoji}{Emoji icon (default: broom).}
+
+\item{icon_base64}{Base64-encoded PNG icon image (optional).}
+
+\item{recurrence_rule}{JSON string from create_recurrence_rule() for flexible scheduling.}
 }
 \value{
 The ID of the created chore.

@@ -4,15 +4,17 @@
 \alias{get_period_filter}
 \title{Get Period Filter}
 \usage{
-get_period_filter(period)
+get_period_filter(period, today = as.character(Sys.Date()))
 }
 \arguments{
 \item{period}{One of 'day', 'week', 'month', 'all_time'.}
+
+\item{today}{Today's date as character string (YYYY-MM-DD).}
 }
 \value{
-SQL string.
+A list with \code{clause} (SQL string with ? placeholders) and \code{params} (list of values).
 }
 \description{
-Returns SQL WHERE clause fragment for date filtering.
+Returns SQL WHERE clause fragment and params for date filtering.
 }
 \keyword{internal}

@@ -15,6 +15,6 @@ member_form(ns, member = NULL)
 HTML form elements
 }
 \description{
-Creates the form fields for adding/editing a member.
+Creates the form fields for adding/editing a member using proper Shiny inputs.
 }
 \keyword{internal}

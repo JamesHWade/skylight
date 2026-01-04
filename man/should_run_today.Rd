@@ -15,6 +15,7 @@ should_run_today(chore, date)
 TRUE if the chore should run, FALSE otherwise.
 }
 \description{
-Determines if a chore should be assigned on a given date based on frequency.
+Determines if a chore should be assigned on a given date based on frequency
+or recurrence rule.
 }
 \keyword{internal}

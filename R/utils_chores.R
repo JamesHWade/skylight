@@ -73,6 +73,15 @@ db_init_chores <- function(con) {
     }
   })
 
+  # Migration: Add recurrence_rule column for flexible recurring options
+  tryCatch({
+    DBI::dbExecute(con, "ALTER TABLE chores ADD COLUMN recurrence_rule VARCHAR")
+  }, error = function(e) {
+    if (!grepl("already|duplicate", conditionMessage(e), ignore.case = TRUE)) {
+      warning("Migration failed (recurrence_rule): ", conditionMessage(e))
+    }
+  })
+
   # Chore assignments table
   DBI::dbExecute(con, "
     CREATE TABLE IF NOT EXISTS chore_assignments (
@@ -405,6 +414,7 @@ get_chore <- function(id) {
 #' @param estimated_minutes Estimated time in minutes (default: 15).
 #' @param icon_emoji Emoji icon (default: broom).
 #' @param icon_base64 Base64-encoded PNG icon image (optional).
+#' @param recurrence_rule JSON string from create_recurrence_rule() for flexible scheduling.
 #'
 #' @return The ID of the created chore.
 #'
@@ -417,7 +427,8 @@ create_chore <- function(title,
                           category = "general",
                           estimated_minutes = 15,
                           icon_emoji = "\U0001F9F9",
-                          icon_base64 = NULL) {
+                          icon_base64 = NULL,
+                          recurrence_rule = NULL) {
   # Validate required fields
   title <- validate_string(title, "title", max_length = 200)
   points <- validate_positive_int(points, "points", min = 1, max = 1000)
@@ -439,8 +450,8 @@ create_chore <- function(title,
   }
 
   db_execute("
-    INSERT INTO chores (title, description, points, frequency, frequency_days, category, estimated_minutes, icon_emoji, icon_base64)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO chores (title, description, points, frequency, frequency_days, category, estimated_minutes, icon_emoji, icon_base64, recurrence_rule)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ", params = list(
     title,
     if (is.null(description)) NA_character_ else description,
@@ -450,7 +461,8 @@ create_chore <- function(title,
     category,
     estimated_minutes,
     icon_emoji,
-    if (is.null(icon_base64)) NA_character_ else icon_base64
+    if (is.null(icon_base64)) NA_character_ else icon_base64,
+    if (is.null(recurrence_rule)) NA_character_ else recurrence_rule
   ))
 
   result <- db_query("SELECT MAX(id) as id FROM chores")
@@ -471,7 +483,8 @@ update_chore <- function(id, ...) {
     id = id,
     updates = list(...),
     valid_fields = c("title", "description", "points", "frequency", "frequency_days",
-                     "category", "estimated_minutes", "icon_emoji", "icon_base64", "is_active")
+                     "category", "estimated_minutes", "icon_emoji", "icon_base64",
+                     "recurrence_rule", "is_active")
   )
 }
 
@@ -892,7 +905,8 @@ generate_daily_assignments <- function(date = Sys.Date(), member_ids = NULL) {
 
 #' Should Chore Run Today
 #'
-#' Determines if a chore should be assigned on a given date based on frequency.
+#' Determines if a chore should be assigned on a given date based on frequency
+#' or recurrence rule.
 #'
 #' @param chore A single-row chore data frame.
 #' @param date The date to check.
@@ -901,6 +915,13 @@ generate_daily_assignments <- function(date = Sys.Date(), member_ids = NULL) {
 #'
 #' @keywords internal
 should_run_today <- function(chore, date) {
+  # First check for recurrence_rule (flexible scheduling)
+  if (!is.null(chore$recurrence_rule) && !is.na(chore$recurrence_rule) &&
+      nchar(chore$recurrence_rule) > 0) {
+    return(matches_recurrence(date, chore$recurrence_rule))
+  }
+
+  # Fall back to legacy frequency-based scheduling
   day_name <- tolower(format(date, "%A"))
 
   switch(chore$frequency,

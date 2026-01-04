@@ -31,8 +31,10 @@ mod_chat_ui <- function(id) {
     ),
 
     # Shinychat UI - fills available space
+    # min-height: 0 is required for flexbox scrolling to work properly
     htmltools::div(
-      class = "flex-grow-1 overflow-hidden",
+      class = "flex-grow-1",
+      style = "min-height: 0; overflow: hidden;",
       shinychat::chat_ui(
         id = ns("chat"),
         messages = list(
@@ -42,7 +44,8 @@ mod_chat_ui <- function(id) {
           )
         ),
         placeholder = "Ask about your calendar...",
-        fill = TRUE
+        fill = TRUE,
+        height = "100%"
       )
     ),
 

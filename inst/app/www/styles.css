@@ -141,8 +141,22 @@
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   padding: 0.5rem;
-  min-width: 200px;
+  min-width: 220px;
   z-index: 1050;
+}
+
+/* Ensure dropdown doesn't overflow on narrow screens */
+@media (max-width: 600px) {
+  .navbar .dropdown-menu {
+    position: fixed !important;
+    top: auto !important;
+    right: 0.5rem !important;
+    left: 0.5rem !important;
+    width: calc(100vw - 1rem) !important;
+    min-width: unset !important;
+    max-width: none !important;
+    margin-top: 0.5rem;
+  }
 }
 
 .navbar .dropdown-menu .dropdown-item {
@@ -206,11 +220,22 @@
   }
 }
 
-/* Stage 4: Below 480px - Hide clock and weather */
+/* Stage 4: Below 480px - Hide clock and weather, fullscreen dropdown */
 @media (max-width: 479px) {
   .clock-widget,
   .weather-widget {
     display: none !important;
+  }
+
+  .navbar .dropdown-menu {
+    position: fixed !important;
+    top: 50px !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    width: auto !important;
+    min-width: unset !important;
+    max-width: none !important;
+    border-radius: 8px;
   }
 }
 

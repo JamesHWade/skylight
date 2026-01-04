@@ -182,10 +182,7 @@ mod_month_view_server <- function(id, events, selected_date, calendars) {
             # Day number
             htmltools::div(
               class = "month-day-number",
-              day_num,
-              if (holiday_info$is_holiday) {
-                bsicons::bs_icon("star-fill", class = "holiday-icon", size = "0.6em")
-              }
+              day_num
             ),
             # Event list (shown on larger screens)
             if (event_count > 0) {

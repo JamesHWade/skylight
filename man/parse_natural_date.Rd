@@ -7,10 +7,11 @@
 parse_natural_date(text)
 }
 \arguments{
-\item{text}{Character string with date reference.}
+\item{text}{Character string with date reference (e.g., "today", "tomorrow",
+"monday", or standard date formats).}
 }
 \value{
-A Date object, or NULL if parsing fails.
+A Date or POSIXct object on success, or NULL if parsing fails.
 }
 \description{
 Attempts to parse natural language date references.

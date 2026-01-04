@@ -4,15 +4,13 @@
 \alias{format_relative_date}
 \title{Format Date Relative to Today}
 \usage{
-format_relative_date(date, include_time = FALSE)
+format_relative_date(date)
 }
 \arguments{
 \item{date}{A Date object.}
-
-\item{include_time}{Logical. Whether to include time if available.}
 }
 \value{
-A character string.
+A character string like "Today", "Tomorrow", or "January 15".
 }
 \description{
 Formats a date with natural language relative to today.

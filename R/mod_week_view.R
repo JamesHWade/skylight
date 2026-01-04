@@ -170,9 +170,6 @@ mod_week_view_server <- function(id, events, selected_date, calendars) {
               htmltools::span(class = "day-num", day_num),
               if (as.numeric(day_num) == 1 || i == 1) {
                 htmltools::span(class = "day-month", month_short)
-              },
-              if (holiday_info$is_holiday) {
-                bsicons::bs_icon("star-fill", class = "holiday-icon", size = "0.7em")
               }
             ),
             if (holiday_info$is_holiday) {

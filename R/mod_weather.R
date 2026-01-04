@@ -54,10 +54,19 @@ mod_weather_server <- function(id, lat = NULL, lon = NULL, root_session = NULL) 
     shiny::observe({
       geo <- root$input$browser_geolocation
       if (!is.null(geo) && !is.null(geo$lat) && !is.null(geo$lon)) {
+        # Check if location actually changed before invalidating cache
+        current <- shiny::isolate(browser_location())
+        location_changed <- is.null(current) ||
+          abs(current$lat - geo$lat) > 0.01 ||
+          abs(current$lon - geo$lon) > 0.01
+
         browser_location(list(lat = geo$lat, lon = geo$lon, source = geo$source))
-        # Invalidate weather cache when location changes
-        weather_cache(NULL)
-        forecast_cache(NULL)
+
+        # Only invalidate cache if location meaningfully changed
+        if (location_changed && !is.null(current)) {
+          weather_cache(NULL)
+          forecast_cache(NULL)
+        }
       }
     })
 

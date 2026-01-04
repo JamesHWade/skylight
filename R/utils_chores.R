@@ -257,9 +257,14 @@ create_family_member <- function(name,
   name <- validate_string(name, "name", max_length = 100)
   avatar_emoji <- validate_string(avatar_emoji, "avatar_emoji", max_length = 10)
 
-  # Validate optional fields
-  if (!is.null(display_name)) {
-    display_name <- validate_string(display_name, "display_name", max_length = 100)
+  # Validate optional fields (allow empty strings, just check length)
+  if (!is.null(display_name) && nchar(trimws(display_name)) > 0) {
+    if (nchar(display_name) > 100) {
+      stop("display_name exceeds maximum length of 100 characters", call. = FALSE)
+    }
+    display_name <- trimws(display_name)
+  } else {
+    display_name <- NULL  # Treat empty string as NULL
   }
 
   # Validate color format (basic check for hex color)
@@ -423,9 +428,14 @@ create_chore <- function(title,
   frequency <- validate_enum(frequency, "frequency", c("daily", "weekly", "monthly", "once"))
   category <- validate_enum(category, "category", c("general", "kitchen", "bedroom", "bathroom", "outdoor"))
 
-  # Validate optional fields
-  if (!is.null(description)) {
-    description <- validate_string(description, "description", max_length = 500)
+  # Validate optional fields (allow empty strings, just check length)
+  if (!is.null(description) && nchar(trimws(description)) > 0) {
+    if (nchar(description) > 500) {
+      stop("description exceeds maximum length of 500 characters", call. = FALSE)
+    }
+    description <- trimws(description)
+  } else {
+    description <- NULL  # Treat empty string as NULL
   }
 
   db_execute("

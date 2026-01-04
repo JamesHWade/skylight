@@ -1,0 +1,46 @@
+# Skylight Calendar - Docker Compose Configuration
+#
+# Usage:
+#   docker-compose up -d        # Start in background
+#   docker-compose logs -f      # View logs
+#   docker-compose down         # Stop and remove containers
+#
+# Environment variables can be set in .env file or passed directly
+
+services:
+  skylight:
+    build: .
+    container_name: skylight-calendar
+    ports:
+      - "${SHINY_PORT:-3838}:3838"
+    environment:
+      # Required for AI chat
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # Required for Google Calendar (omit for demo mode)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      # Optional: Weather widget
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY:-}
+      - WEATHER_LOCATION=${WEATHER_LOCATION:-}
+      # Optional: AI icon generation
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Internal configuration
+      - SKYLIGHT_DB_PATH=/data/skylight/skylight.duckdb
+      - SHINY_PORT=3838
+    volumes:
+      # Persist database and token cache
+      - skylight-data:/data/skylight
+      - skylight-cache:/home/shiny/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3838"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  skylight-data:
+    driver: local
+  skylight-cache:
+    driver: local

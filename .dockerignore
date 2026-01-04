@@ -1,0 +1,69 @@
+# Git
+.git
+.gitignore
+
+# R package build artifacts
+*.tar.gz
+*.Rcheck/
+
+# Development files
+.Rproj.user
+*.Rproj
+.RData
+.Rhistory
+.Ruserdata
+
+# Test files
+tests/
+testthat/
+
+# Documentation source
+vignettes/
+man/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker files (avoid infinite loop)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Local configuration
+.env
+.env.*
+*.local
+
+# Beads issue tracking
+.beads/
+
+# Claude configuration
+.claude/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Cache directories
+.cache/
+__pycache__/
+
+# Node modules (if any frontend tooling)
+node_modules/
+
+# Coverage reports
+coverage/
+.coverage
+
+# Build outputs (keep inst/app for the actual app)
+docs/

@@ -78,6 +78,32 @@ Optional:
 - `SKYLIGHT_DB_PATH` - custom DuckDB path
 - `SKYLIGHT_CACHE_DIR` - custom token cache
 
+## Docker Deployment
+
+```bash
+# Build and run with docker-compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+Create a `.env` file with required environment variables:
+```
+ANTHROPIC_API_KEY=your_key
+GOOGLE_CLIENT_ID=your_id
+GOOGLE_CLIENT_SECRET=your_secret
+GEMINI_API_KEY=your_key  # Optional, for AI icons
+OPENWEATHER_API_KEY=your_key  # Optional, for weather
+```
+
+Data is persisted in Docker volumes:
+- `skylight-data`: DuckDB database
+- `skylight-cache`: OAuth token cache
+
 ## Issue Tracking
 
 This project uses **bd** (beads) for issue tracking. See AGENTS.md for workflow details.

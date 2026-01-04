@@ -64,12 +64,25 @@ app_ui <- function() {
       mod_agenda_view_ui("agenda_view")
     ),
 
+    # Chores View
+    bslib::nav_panel(
+      title = "Chores",
+      value = "chores",
+      icon = bsicons::bs_icon("list-check"),
+      mod_chores_ui("chores")
+    ),
+
     # Spacer to push remaining items right
     bslib::nav_spacer(),
 
     # Weather widget in navbar
     bslib::nav_item(
       mod_weather_ui("weather")
+    ),
+
+    # Chores widget in navbar
+    bslib::nav_item(
+      mod_chores_widget_ui("chores_widget")
     ),
 
     # Clock widget in navbar

@@ -92,9 +92,13 @@ app_server <- function(input, output, session) {
   mod_day_view_server("day_view", events = events, selected_date = selected_date, calendars = calendars)
   mod_agenda_view_server("agenda_view", events = events, selected_date = selected_date)
 
+  # Chores module
+  chores_refresh <- mod_chores_server("chores")
+
   # Widget modules
   mod_clock_server("clock")
   mod_weather_server("weather", root_session = session)
+  mod_chores_widget_server("chores_widget", refresh_trigger = chores_refresh)
   mod_chat_server(
     "chat",
     events = events,

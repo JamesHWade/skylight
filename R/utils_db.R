@@ -96,6 +96,9 @@ db_init <- function() {
     CREATE INDEX IF NOT EXISTS idx_events_start ON events(start)
   ")
 
+  # Initialize chores tables
+  db_init_chores(con)
+
   invisible(TRUE)
 }
 

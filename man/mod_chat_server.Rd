@@ -4,7 +4,14 @@
 \alias{mod_chat_server}
 \title{Chat Module Server}
 \usage{
-mod_chat_server(id, events, calendars, selected_date)
+mod_chat_server(
+  id,
+  events,
+  calendars,
+  selected_date,
+  refresh_trigger = NULL,
+  can_create_events = TRUE
+)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -14,6 +21,10 @@ mod_chat_server(id, events, calendars, selected_date)
 \item{calendars}{Reactive containing calendar list}
 
 \item{selected_date}{Reactive value for selected date}
+
+\item{refresh_trigger}{Reactive value to trigger calendar refresh after event creation}
+
+\item{can_create_events}{Logical. Whether the chat can create events (FALSE in demo mode)}
 }
 \description{
 Chat Module Server

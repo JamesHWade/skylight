@@ -14,5 +14,6 @@ A Shiny UI definition
 }
 \description{
 A compact weather display for the navbar showing current conditions.
+Clicking opens a modal with today's weather and 5-day forecast.
 }
 \keyword{internal}

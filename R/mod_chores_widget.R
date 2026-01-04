@@ -79,7 +79,7 @@ mod_chores_widget_server <- function(id, refresh_trigger = NULL) {
     shiny::observeEvent(input$widget_click, {
       # This would need to be handled by the parent to switch tabs
       # For now, we'll use JavaScript to click the Chores nav item
-      shiny::runjs("
+      shinyjs::runjs("
         var choresTab = document.querySelector('[data-value=\"chores\"]');
         if (choresTab) choresTab.click();
       ")
@@ -87,7 +87,7 @@ mod_chores_widget_server <- function(id, refresh_trigger = NULL) {
 
     # Make widget clickable
     shiny::observe({
-      shiny::runjs(sprintf("
+      shinyjs::runjs(sprintf("
         var widget = document.getElementById('%s');
         if (widget) {
           widget.style.cursor = 'pointer';

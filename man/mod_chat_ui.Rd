@@ -14,5 +14,6 @@ A Shiny UI definition
 }
 \description{
 AI-powered chat interface for natural language calendar interaction.
+Uses shinychat for the chat UI component.
 }
 \keyword{internal}

@@ -186,10 +186,10 @@ create_family_member <- function(name,
     VALUES (?, ?, ?, ?, ?)
   ", params = list(
     name,
-    display_name,
+    if (is.null(display_name)) NA_character_ else display_name,
     avatar_emoji,
     color,
-    if (is.null(birth_date)) NA else as.character(birth_date)
+    if (is.null(birth_date)) NA_character_ else as.character(birth_date)
   ))
 
   # Return the created member's ID
@@ -298,7 +298,7 @@ get_chore <- function(id) {
 #' @param description Optional description.
 #' @param points Points awarded on completion (default: 10).
 #' @param frequency How often: 'daily', 'weekly', 'monthly', 'once' (default: 'daily').
-#' @param frequency_days For weekly: which days (JSON array like '["monday","wednesday"]').
+#' @param frequency_days For weekly: which days (JSON array, e.g. `'["monday","wednesday"]'`).
 #' @param category Category: 'kitchen', 'bedroom', 'bathroom', 'outdoor', 'general'.
 #' @param estimated_minutes Estimated time in minutes (default: 15).
 #' @param icon_emoji Emoji icon (default: broom).
@@ -319,10 +319,10 @@ create_chore <- function(title,
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   ", params = list(
     title,
-    description,
+    if (is.null(description)) NA_character_ else description,
     points,
     frequency,
-    frequency_days,
+    if (is.null(frequency_days)) NA_character_ else frequency_days,
     category,
     estimated_minutes,
     icon_emoji

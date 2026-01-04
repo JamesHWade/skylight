@@ -2542,6 +2542,146 @@
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+/* --------------------------------------------------------------------------
+   10.11 Form Inputs & Pickers (Chores/Family)
+   -------------------------------------------------------------------------- */
+
+/* Date filter radio buttons (pill style) */
+.date-filter-radio {
+  margin-bottom: 0;
+}
+
+.date-filter-radio .shiny-options-group {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.date-filter-radio .shiny-options-group label {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin: 0;
+  transition: all 0.15s ease-in-out;
+}
+
+.date-filter-radio .shiny-options-group label:has(input:checked) {
+  background: var(--bs-primary, #0d6efd);
+  border-color: var(--bs-primary, #0d6efd);
+  color: white;
+}
+
+.date-filter-radio .shiny-options-group input[type='radio'] {
+  display: none;
+}
+
+/* Avatar radio picker (emoji buttons) */
+.avatar-radio-picker .shiny-options-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.avatar-radio-picker .shiny-options-group label {
+  font-size: 1.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  margin: 0;
+  transition: all 0.15s ease-in-out;
+}
+
+.avatar-radio-picker .shiny-options-group label:has(input:checked) {
+  border-color: var(--bs-primary, #0d6efd);
+  background: var(--bs-primary-bg-subtle, #e7f1ff);
+}
+
+.avatar-radio-picker .shiny-options-group input[type='radio'] {
+  display: none;
+}
+
+/* Color radio picker (color swatches) */
+.color-radio-picker .shiny-options-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.color-radio-picker .shiny-options-group label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  margin: 0;
+  transition: all 0.15s ease-in-out;
+  font-size: 0;  /* Hide the label text */
+}
+
+.color-radio-picker .shiny-options-group label:has(input:checked) {
+  border-color: #333;
+  box-shadow: 0 0 0 2px white, 0 0 0 4px var(--bs-primary, #0d6efd);
+}
+
+.color-radio-picker .shiny-options-group input[type='radio'] {
+  display: none;
+}
+
+/* Icon radio picker (emoji buttons for chores) */
+.icon-radio-picker .shiny-options-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.icon-radio-picker .shiny-options-group label {
+  font-size: 1.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  margin: 0;
+  transition: all 0.15s ease-in-out;
+}
+
+.icon-radio-picker .shiny-options-group label:hover {
+  border-color: var(--bs-primary, #0d6efd);
+  background: var(--bs-primary-bg-subtle, #e7f1ff);
+}
+
+.icon-radio-picker .shiny-options-group label:has(input:checked) {
+  border-color: var(--bs-primary, #0d6efd);
+  border-width: 2px;
+  background: var(--bs-primary-bg-subtle, #e7f1ff);
+  box-shadow: 0 0 0 2px var(--bs-primary, #0d6efd);
+}
+
+.icon-radio-picker .shiny-options-group input[type='radio'] {
+  display: none;
+}
+
+/* Dark mode adjustments for pickers */
+[data-bs-theme="dark"] .avatar-radio-picker .shiny-options-group label:has(input:checked) {
+  background: var(--bs-primary);
+}
+
+[data-bs-theme="dark"] .icon-radio-picker .shiny-options-group label:has(input:checked) {
+  background: rgba(13, 110, 253, 0.2);
+}
+
+[data-bs-theme="dark"] .color-radio-picker .shiny-options-group label:has(input:checked) {
+  box-shadow: 0 0 0 2px #1a1a2e, 0 0 0 4px var(--bs-primary);
+}
+
 
 /* ==========================================================================
    11. OVERRIDES

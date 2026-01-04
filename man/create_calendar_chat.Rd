@@ -4,17 +4,26 @@
 \alias{create_calendar_chat}
 \title{Create Calendar Chat Instance}
 \usage{
-create_calendar_chat(events, calendars)
+create_calendar_chat(
+  events,
+  calendars,
+  can_create_events = TRUE,
+  on_event_created = NULL
+)
 }
 \arguments{
 \item{events}{Current events data}
 
 \item{calendars}{Current calendars list}
+
+\item{can_create_events}{Logical. Whether to enable event creation tool.}
+
+\item{on_event_created}{Callback function to run after event creation.}
 }
 \value{
 An ellmer chat object
 }
 \description{
-Initialize an ellmer chat with calendar context.
+Initialize an ellmer chat with calendar context and optional event creation tool.
 }
 \keyword{internal}

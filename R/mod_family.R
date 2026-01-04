@@ -237,7 +237,7 @@ member_row <- function(member, ns) {
 
 #' Member Form
 #'
-#' Creates the form fields for adding/editing a member.
+#' Creates the form fields for adding/editing a member using proper Shiny inputs.
 #'
 #' @param ns Namespace function.
 #' @param member Optional existing member data for editing.
@@ -254,112 +254,67 @@ member_form <- function(ns, member = NULL) {
   avatar_val <- if (is_edit) member$avatar_emoji else "\U0001F464"
   color_val <- if (is_edit) member$color else "#74B9FF"
 
-  # Common avatar options
+  # Common avatar options - named vector for radioButtons
   avatar_choices <- c(
-    "\U0001F464",  # person silhouette
-    "\U0001F466",  # boy
-    "\U0001F467",  # girl
-    "\U0001F468",  # man
-    "\U0001F469",  # woman
-    "\U0001F474",  # old man
-    "\U0001F475",  # old woman
-    "\U0001F476",  # baby
-    "\U0001F9D1",  # person
-    "\U0001F431",  # cat face
-    "\U0001F436"   # dog face
+    "\U0001F464" = "\U0001F464",
+    "\U0001F466" = "\U0001F466",
+    "\U0001F467" = "\U0001F467",
+    "\U0001F468" = "\U0001F468",
+    "\U0001F469" = "\U0001F469",
+    "\U0001F474" = "\U0001F474",
+    "\U0001F475" = "\U0001F475",
+    "\U0001F476" = "\U0001F476",
+    "\U0001F9D1" = "\U0001F9D1",
+    "\U0001F431" = "\U0001F431",
+    "\U0001F436" = "\U0001F436"
   )
 
-  # Color palette matching app theme
-  color_choices <- c(
-    "#74B9FF",  # Soft blue
-    "#FF7675",  # Coral
-    "#55EFC4",  # Mint
-    "#A29BFE",  # Lavender
-    "#FFEAA7",  # Sunshine
-    "#FD79A8",  # Pink
-    "#00B894",  # Green
-    "#E17055",  # Orange
-    "#6C5CE7",  # Purple
-    "#81ECEC"   # Cyan
-  )
+  # Color palette matching app theme - values are hex codes
+  color_values <- c("#74B9FF", "#FF7675", "#55EFC4", "#A29BFE", "#FFEAA7",
+                    "#FD79A8", "#00B894", "#E17055", "#6C5CE7", "#81ECEC")
 
-  htmltools::tagList(
-    htmltools::div(
-      class = "mb-3",
-      htmltools::tags$label(class = "form-label", `for` = ns("member_name"), "Name *"),
-      htmltools::tags$input(
-        type = "text",
-        class = "form-control",
-        id = ns("member_name"),
-        value = name_val,
-        placeholder = "Enter name"
-      )
-    ),
-    htmltools::div(
-      class = "mb-3",
-      htmltools::tags$label(class = "form-label", `for` = ns("member_display_name"), "Nickname (optional)"),
-      htmltools::tags$input(
-        type = "text",
-        class = "form-control",
-        id = ns("member_display_name"),
-        value = display_val,
-        placeholder = "Display name"
-      )
-    ),
-    htmltools::div(
-      class = "mb-3",
-      htmltools::tags$label(class = "form-label", "Avatar"),
-      htmltools::div(
-        class = "avatar-picker d-flex flex-wrap gap-2",
-        lapply(avatar_choices, function(emoji) {
-          selected <- emoji == avatar_val
-          htmltools::tags$button(
-            type = "button",
-            class = paste("btn avatar-option", if (selected) "btn-primary" else "btn-outline-secondary"),
-            style = "font-size: 1.5rem; width: 3rem; height: 3rem;",
-            onclick = sprintf(
-              "document.getElementById('%s').value = '%s'; this.parentNode.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('btn-primary')); this.classList.add('btn-primary');",
-              ns("member_avatar"), emoji
-            ),
-            emoji
-          )
-        }),
-        htmltools::tags$input(
-          type = "hidden",
-          id = ns("member_avatar"),
-          value = avatar_val
-        )
-      )
-    ),
-    htmltools::div(
-      class = "mb-3",
-      htmltools::tags$label(class = "form-label", "Color"),
-      htmltools::div(
-        class = "color-picker d-flex flex-wrap gap-2",
-        lapply(color_choices, function(color) {
-          selected <- tolower(color) == tolower(color_val)
-          htmltools::tags$button(
-            type = "button",
-            class = paste("btn color-option rounded-circle p-0", if (selected) "ring ring-primary" else ""),
-            style = htmltools::css(
-              `background-color` = color,
-              width = "2rem",
-              height = "2rem",
-              border = if (selected) "2px solid #333" else "1px solid #ddd"
-            ),
-            onclick = sprintf(
-              "document.getElementById('%s').value = '%s'; this.parentNode.querySelectorAll('.color-option').forEach(b => {b.style.border = '1px solid #ddd';}); this.style.border = '2px solid #333';",
-              ns("member_color"), color
-            ),
-            ""
-          )
-        }),
-        htmltools::tags$input(
-          type = "hidden",
-          id = ns("member_color"),
-          value = color_val
-        )
+  # Create color swatches as choice names (styled spans with background color)
+  color_choice_names <- lapply(color_values, function(color) {
+    htmltools::span(
+      style = htmltools::css(
+        `background-color` = color,
+        width = "1.5rem",
+        height = "1.5rem",
+        `border-radius` = "50%",
+        display = "inline-block"
       )
     )
+  })
+
+  htmltools::tagList(
+    shiny::textInput(
+      ns("member_name"),
+      "Name *",
+      value = name_val,
+      placeholder = "Enter name"
+    ),
+    shiny::textInput(
+      ns("member_display_name"),
+      "Nickname (optional)",
+      value = display_val,
+      placeholder = "Display name"
+    ),
+    # Avatar picker using radioButtons (CSS in styles.css)
+    shiny::radioButtons(
+      ns("member_avatar"),
+      "Avatar",
+      choices = avatar_choices,
+      selected = avatar_val,
+      inline = TRUE
+    ) |> htmltools::tagAppendAttributes(class = "avatar-radio-picker"),
+    # Color picker with styled color swatches (CSS in styles.css)
+    shiny::radioButtons(
+      ns("member_color"),
+      "Color",
+      choiceNames = color_choice_names,
+      choiceValues = color_values,
+      selected = color_val,
+      inline = TRUE
+    ) |> htmltools::tagAppendAttributes(class = "color-radio-picker")
   )
 }

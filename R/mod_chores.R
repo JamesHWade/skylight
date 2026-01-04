@@ -8,6 +8,7 @@
 #'
 #' @keywords internal
 mod_chores_ui <- function(id) {
+
   ns <- shiny::NS(id)
 
   htmltools::div(
@@ -16,24 +17,13 @@ mod_chores_ui <- function(id) {
     # Navigation header
     htmltools::div(
       class = "chores-nav",
-      style = "display: flex; align-items: center; justify-content: space-between; flex-direction: row; margin-bottom: 1rem;",
+      style = "display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;",
 
-      # Title and view toggle
-      htmltools::div(
-        class = "chores-header-left",
-        style = "display: flex; align-items: center; gap: 1rem;",
-        htmltools::h2(
-          class = "chores-title",
-          style = "margin: 0; font-size: 1.5rem;",
-          "Family Chores"
-        ),
-        htmltools::div(
-          class = "btn-group btn-group-sm",
-          role = "group",
-          shiny::actionButton(ns("view_person"), "By Person", class = "btn btn-outline-primary active"),
-          shiny::actionButton(ns("view_chore"), "By Chore", class = "btn btn-outline-primary"),
-          shiny::actionButton(ns("view_leaderboard"), "Leaderboard", class = "btn btn-outline-primary")
-        )
+      # Title
+      htmltools::h2(
+        class = "chores-title",
+        style = "margin: 0; font-size: 1.5rem;",
+        "Family Chores"
       ),
 
       # Action buttons
@@ -56,18 +46,40 @@ mod_chores_ui <- function(id) {
       )
     ),
 
-    # Date filter row
+    # Date filter row with summary
     htmltools::div(
       class = "chores-filter-row",
-      style = "display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;",
-      shiny::actionButton(ns("filter_today"), "Today", class = "btn btn-sm btn-outline-secondary active"),
-      shiny::actionButton(ns("filter_week"), "This Week", class = "btn btn-sm btn-outline-secondary"),
+      style = "display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;",
+      shiny::radioButtons(
+        ns("date_filter"),
+        label = NULL,
+        choices = c("Today" = "today", "This Week" = "week"),
+        selected = "today",
+        inline = TRUE
+      ) |> htmltools::tagAppendAttributes(class = "date-filter-radio"),
       htmltools::div(class = "flex-grow-1"),
       shiny::uiOutput(ns("summary_stats"))
     ),
 
-    # Main content area
-    shiny::uiOutput(ns("chores_content"))
+    # Main content with navset_pill for view switching
+    bslib::navset_pill(
+      id = ns("view_mode"),
+      bslib::nav_panel(
+        title = "By Person",
+        value = "person",
+        shiny::uiOutput(ns("content_person"))
+      ),
+      bslib::nav_panel(
+        title = "By Chore",
+        value = "chore",
+        shiny::uiOutput(ns("content_chore"))
+      ),
+      bslib::nav_panel(
+        title = "Leaderboard",
+        value = "leaderboard",
+        shiny::uiOutput(ns("content_leaderboard"))
+      )
+    )
   )
 }
 
@@ -81,9 +93,7 @@ mod_chores_server <- function(id, family_members = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # State
-    view_mode <- shiny::reactiveVal("person")  # person, chore, leaderboard
-    date_filter <- shiny::reactiveVal("today")  # today, week
+    # State - only need refresh trigger now, view_mode and date_filter come from inputs
     refresh_trigger <- shiny::reactiveVal(0)
 
     # Load data reactives
@@ -99,9 +109,9 @@ mod_chores_server <- function(id, family_members = NULL) {
 
     assignments <- shiny::reactive({
       refresh_trigger()
-      filter <- date_filter()
+      filter <- input$date_filter
 
-      if (filter == "today") {
+      if (is.null(filter) || filter == "today") {
         get_assignments_for_date(Sys.Date())
       } else {
         # This week (Monday to Sunday)
@@ -121,53 +131,10 @@ mod_chores_server <- function(id, family_members = NULL) {
       }
     })
 
-    leaderboard <- shiny::reactive({
+    leaderboard_data <- shiny::reactive({
       refresh_trigger()
-      period <- if (date_filter() == "today") "day" else "week"
+      period <- if (is.null(input$date_filter) || input$date_filter == "today") "day" else "week"
       get_leaderboard(period)
-    })
-
-    # View mode switching
-    shiny::observeEvent(input$view_person, {
-      view_mode("person")
-      update_view_buttons("person")
-    })
-
-    shiny::observeEvent(input$view_chore, {
-      view_mode("chore")
-      update_view_buttons("chore")
-    })
-
-    shiny::observeEvent(input$view_leaderboard, {
-      view_mode("leaderboard")
-      update_view_buttons("leaderboard")
-    })
-
-    update_view_buttons <- function(active) {
-      # Update button states via JS
-      shiny::runjs(sprintf("
-        document.querySelectorAll('#%s .btn-group .btn').forEach(function(btn) {
-          btn.classList.remove('active');
-        });
-        document.getElementById('%s').classList.add('active');
-      ", ns(""), ns(paste0("view_", active))))
-    }
-
-    # Date filter switching
-    shiny::observeEvent(input$filter_today, {
-      date_filter("today")
-      shiny::runjs(sprintf("
-        document.getElementById('%s').classList.add('active');
-        document.getElementById('%s').classList.remove('active');
-      ", ns("filter_today"), ns("filter_week")))
-    })
-
-    shiny::observeEvent(input$filter_week, {
-      date_filter("week")
-      shiny::runjs(sprintf("
-        document.getElementById('%s').classList.remove('active');
-        document.getElementById('%s').classList.add('active');
-      ", ns("filter_today"), ns("filter_week")))
     })
 
     # Summary stats
@@ -192,22 +159,31 @@ mod_chores_server <- function(id, family_members = NULL) {
       )
     })
 
-    # Main content rendering
-    output$chores_content <- shiny::renderUI({
-      mode <- view_mode()
+    # Content rendering for each tab - bslib handles tab switching automatically
+    output$content_person <- shiny::renderUI({
       m <- members()
       a <- assignments()
-
       if (is.null(m) || nrow(m) == 0) {
         return(no_members_placeholder(ns))
       }
+      render_by_person(m, a, ns)
+    })
 
-      switch(mode,
-        "person" = render_by_person(m, a, ns),
-        "chore" = render_by_chore(a, ns),
-        "leaderboard" = render_leaderboard(leaderboard(), ns),
-        render_by_person(m, a, ns)
-      )
+    output$content_chore <- shiny::renderUI({
+      m <- members()
+      a <- assignments()
+      if (is.null(m) || nrow(m) == 0) {
+        return(no_members_placeholder(ns))
+      }
+      render_by_chore(a, ns)
+    })
+
+    output$content_leaderboard <- shiny::renderUI({
+      m <- members()
+      if (is.null(m) || nrow(m) == 0) {
+        return(no_members_placeholder(ns))
+      }
+      render_leaderboard(leaderboard_data(), ns)
     })
 
     # Quick complete handlers - dynamic observers
@@ -560,49 +536,53 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
 
   # Defaults
   title_val <- if (is_edit) chore$title else ""
-  desc_val <- if (is_edit) chore$description else ""
+  desc_val <- if (is_edit && !is.na(chore$description)) chore$description else ""
   points_val <- if (is_edit) chore$points else 10
   freq_val <- if (is_edit) chore$frequency else "daily"
   cat_val <- if (is_edit) chore$category else "general"
   icon_val <- if (is_edit) chore$icon_emoji else "\U0001F9F9"
 
-  # Icon options
+ # Icon options - named vector for radioButtons
   icon_choices <- c(
-    "\U0001F9F9",   # broom
-    "\U0001F37D",   # plate/fork/knife
-    "\U0001F6CF",   # bed
-    "\U0001F6BF",   # shower
-    "\U0001F9FA",   # sponge
-    "\U0001F9F4",   # lotion
-    "\U0001F9F5",   # thread
-    "\U0001F6AE",   # trash
-    "\U0001F3E0",   # house
-    "\U0001F331",   # plant
-    "\U0001F436",   # dog
-    "\U0001F431"    # cat
+    "\U0001F9F9" = "\U0001F9F9",
+    "\U0001F37D" = "\U0001F37D",
+    "\U0001F6CF" = "\U0001F6CF",
+    "\U0001F6BF" = "\U0001F6BF",
+    "\U0001F9FA" = "\U0001F9FA",
+    "\U0001F9F4" = "\U0001F9F4",
+    "\U0001F9F5" = "\U0001F9F5",
+    "\U0001F6AE" = "\U0001F6AE",
+    "\U0001F3E0" = "\U0001F3E0",
+    "\U0001F331" = "\U0001F331",
+    "\U0001F436" = "\U0001F436",
+    "\U0001F431" = "\U0001F431"
   )
 
+  # Member choices for assignment (if members exist)
+  member_choices <- if (!is.null(members) && nrow(members) > 0) {
+    choices <- setNames(
+      as.character(members$id),
+      paste(members$avatar_emoji, members$display_name %||% members$name)
+    )
+    choices
+  } else {
+    NULL
+  }
+
   htmltools::tagList(
-    htmltools::div(
-      class = "mb-3",
-      htmltools::tags$label(class = "form-label", "Chore Name *"),
-      htmltools::tags$input(
-        type = "text",
-        class = "form-control",
-        id = ns("chore_title"),
-        value = title_val,
-        placeholder = "e.g., Take out trash"
-      )
+    shiny::textInput(
+      ns("chore_title"),
+      "Chore Name *",
+      value = title_val,
+      placeholder = "e.g., Take out trash"
     ),
     htmltools::div(
-      class = "row mb-3",
+      class = "row",
       htmltools::div(
         class = "col-6",
-        htmltools::tags$label(class = "form-label", "Points"),
-        htmltools::tags$input(
-          type = "number",
-          class = "form-control",
-          id = ns("chore_points"),
+        shiny::numericInput(
+          ns("chore_points"),
+          "Points",
           value = points_val,
           min = 1,
           max = 100
@@ -610,87 +590,51 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
       ),
       htmltools::div(
         class = "col-6",
-        htmltools::tags$label(class = "form-label", "Frequency"),
-        htmltools::tags$select(
-          class = "form-select",
-          id = ns("chore_frequency"),
-          htmltools::tags$option(value = "daily", selected = if (freq_val == "daily") "selected", "Daily"),
-          htmltools::tags$option(value = "weekly", selected = if (freq_val == "weekly") "selected", "Weekly"),
-          htmltools::tags$option(value = "monthly", selected = if (freq_val == "monthly") "selected", "Monthly"),
-          htmltools::tags$option(value = "once", selected = if (freq_val == "once") "selected", "One-time")
+        shiny::selectInput(
+          ns("chore_frequency"),
+          "Frequency",
+          choices = c(
+            "Daily" = "daily",
+            "Weekly" = "weekly",
+            "Monthly" = "monthly",
+            "One-time" = "once"
+          ),
+          selected = freq_val
         )
       )
     ),
-    htmltools::div(
-      class = "mb-3",
-      htmltools::tags$label(class = "form-label", "Category"),
-      htmltools::tags$select(
-        class = "form-select",
-        id = ns("chore_category"),
-        htmltools::tags$option(value = "general", selected = if (cat_val == "general") "selected", "General"),
-        htmltools::tags$option(value = "kitchen", selected = if (cat_val == "kitchen") "selected", "Kitchen"),
-        htmltools::tags$option(value = "bedroom", selected = if (cat_val == "bedroom") "selected", "Bedroom"),
-        htmltools::tags$option(value = "bathroom", selected = if (cat_val == "bathroom") "selected", "Bathroom"),
-        htmltools::tags$option(value = "outdoor", selected = if (cat_val == "outdoor") "selected", "Outdoor")
-      )
+    shiny::selectInput(
+      ns("chore_category"),
+      "Category",
+      choices = c(
+        "General" = "general",
+        "Kitchen" = "kitchen",
+        "Bedroom" = "bedroom",
+        "Bathroom" = "bathroom",
+        "Outdoor" = "outdoor"
+      ),
+      selected = cat_val
     ),
-    htmltools::div(
-      class = "mb-3",
-      htmltools::tags$label(class = "form-label", "Icon"),
-      htmltools::div(
-        class = "icon-picker d-flex flex-wrap gap-2",
-        lapply(icon_choices, function(icon) {
-          selected <- icon == icon_val
-          htmltools::tags$button(
-            type = "button",
-            class = paste("btn icon-option", if (selected) "btn-primary" else "btn-outline-secondary"),
-            style = "font-size: 1.25rem; width: 2.5rem; height: 2.5rem;",
-            onclick = sprintf(
-              "document.getElementById('%s').value = '%s'; this.parentNode.querySelectorAll('.icon-option').forEach(b => b.classList.remove('btn-primary')); this.classList.add('btn-primary');",
-              ns("chore_icon"), icon
-            ),
-            icon
-          )
-        }),
-        htmltools::tags$input(type = "hidden", id = ns("chore_icon"), value = icon_val)
-      )
+    # Icon picker using radioButtons (CSS in styles.css)
+    shiny::radioButtons(
+      ns("chore_icon"),
+      "Icon",
+      choices = icon_choices,
+      selected = icon_val,
+      inline = TRUE
+    ) |> htmltools::tagAppendAttributes(class = "icon-radio-picker"),
+    shiny::textAreaInput(
+      ns("chore_description"),
+      "Description (optional)",
+      value = desc_val,
+      rows = 2,
+      placeholder = "Additional details..."
     ),
-    htmltools::div(
-      class = "mb-3",
-      htmltools::tags$label(class = "form-label", "Description (optional)"),
-      htmltools::tags$textarea(
-        class = "form-control",
-        id = ns("chore_description"),
-        rows = 2,
-        placeholder = "Additional details...",
-        desc_val
-      )
-    ),
-    if (!is.null(members) && nrow(members) > 0) {
-      htmltools::div(
-        class = "mb-3",
-        htmltools::tags$label(class = "form-label", "Assign to (for today)"),
-        htmltools::div(
-          class = "member-checkboxes",
-          lapply(seq_len(nrow(members)), function(i) {
-            m <- members[i, ]
-            htmltools::div(
-              class = "form-check",
-              htmltools::tags$input(
-                type = "checkbox",
-                class = "form-check-input",
-                id = ns(paste0("assign_", m$id)),
-                name = ns("chore_assign_to"),
-                value = m$id
-              ),
-              htmltools::tags$label(
-                class = "form-check-label",
-                `for` = ns(paste0("assign_", m$id)),
-                htmltools::span(m$avatar_emoji, " ", m$display_name %||% m$name)
-              )
-            )
-          })
-        )
+    if (!is.null(member_choices)) {
+      shiny::checkboxGroupInput(
+        ns("chore_assign_to"),
+        "Assign to (for today)",
+        choices = member_choices
       )
     }
   )

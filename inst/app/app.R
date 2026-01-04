@@ -11,6 +11,9 @@ options(bslib.color_contrast_warnings = FALSE)
 # Load the package (change to library(skylight) for deployment)
 devtools::load_all()
 
+# Initialize database
+db_init()
+
 # Run the app
 shiny::shinyApp(
   ui = app_ui(),

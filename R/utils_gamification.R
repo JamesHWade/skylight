@@ -217,12 +217,14 @@ calculate_points <- function(chore_id, member_id, streak_count = NULL) {
 #'
 #' @export
 get_today_points <- function(member_id) {
+
+  today <- as.character(Sys.Date())
   result <- db_query("
     SELECT COALESCE(SUM(points_earned + streak_bonus), 0) as total
     FROM chore_completions
     WHERE member_id = ?
-      AND DATE(completed_at) = CURRENT_DATE
-  ", params = list(member_id))
+      AND DATE(completed_at) = ?
+  ", params = list(member_id, today))
 
   as.integer(result$total[1])
 }
@@ -333,7 +335,8 @@ get_member_stats <- function(member_id, period = "week") {
 #'
 #' @export
 get_family_stats <- function(period = "week") {
-  date_filter <- get_period_filter(period)
+  today <- as.character(Sys.Date())
+  date_filter <- get_period_filter(period, today)
 
   totals <- db_query(paste0("
     SELECT
@@ -346,16 +349,16 @@ get_family_stats <- function(period = "week") {
   pending <- db_query("
     SELECT COUNT(*) as pending_today
     FROM chore_assignments
-    WHERE assigned_date = CURRENT_DATE
+    WHERE assigned_date = ?
       AND status = 'pending'
-  ")
+  ", params = list(today))
 
   completed_today <- db_query("
     SELECT COUNT(*) as completed_today
     FROM chore_assignments
-    WHERE assigned_date = CURRENT_DATE
+    WHERE assigned_date = ?
       AND status = 'completed'
-  ")
+  ", params = list(today))
 
   list(
     total_points = as.integer(totals$total_points[1]),
@@ -374,15 +377,21 @@ get_family_stats <- function(period = "week") {
 #' Returns SQL WHERE clause fragment for date filtering.
 #'
 #' @param period One of 'day', 'week', 'month', 'all_time'.
+#' @param today Today's date as character string (YYYY-MM-DD).
 #'
 #' @return SQL string.
 #'
 #' @keywords internal
-get_period_filter <- function(period) {
+get_period_filter <- function(period, today = as.character(Sys.Date())) {
+  # Calculate week and month start dates in R to avoid DuckDB ICU dependency
+  today_date <- as.Date(today)
+  week_start <- as.character(today_date - as.numeric(format(today_date, "%u")) + 1)
+  month_start <- as.character(as.Date(format(today_date, "%Y-%m-01")))
+
   switch(period,
-    "day" = "DATE(completed_at) = CURRENT_DATE",
-    "week" = "completed_at >= DATE_TRUNC('week', CURRENT_DATE)",
-    "month" = "completed_at >= DATE_TRUNC('month', CURRENT_DATE)",
+    "day" = sprintf("DATE(completed_at) = '%s'", today),
+    "week" = sprintf("completed_at >= '%s'", week_start),
+    "month" = sprintf("completed_at >= '%s'", month_start),
     "all_time" = "1=1",
     "1=1"  # default
   )
@@ -396,16 +405,17 @@ get_period_filter <- function(period) {
 #'
 #' @export
 get_chores_today_summary <- function() {
+  today <- as.character(Sys.Date())
   result <- db_query("
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
     FROM chore_assignments
-    WHERE assigned_date = CURRENT_DATE
-  ")
+    WHERE assigned_date = ?
+  ", params = list(today))
 
   list(
-    completed = as.integer(result$completed[1]),
+    completed = if (is.na(result$completed[1])) 0L else as.integer(result$completed[1]),
     total = as.integer(result$total[1])
   )
 }

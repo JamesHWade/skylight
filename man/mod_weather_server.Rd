@@ -4,16 +4,19 @@
 \alias{mod_weather_server}
 \title{Weather Widget Module Server}
 \usage{
-mod_weather_server(id, lat = NULL, lon = NULL)
+mod_weather_server(id, lat = NULL, lon = NULL, root_session = NULL)
 }
 \arguments{
 \item{id}{Module namespace ID}
 
-\item{lat}{Reactive or static latitude (default: NULL, will use config)}
+\item{lat}{Reactive or static latitude (default: NULL, will use browser/config)}
 
-\item{lon}{Reactive or static longitude (default: NULL, will use config)}
+\item{lon}{Reactive or static longitude (default: NULL, will use browser/config)}
+
+\item{root_session}{The root Shiny session (for accessing global inputs)}
 }
 \description{
 Fetches and displays weather data from OpenWeatherMap API.
+Supports browser geolocation for automatic location detection.
 }
 \keyword{internal}

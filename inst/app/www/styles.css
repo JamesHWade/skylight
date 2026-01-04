@@ -590,6 +590,11 @@
   position: relative;
 }
 
+/* Increase header height for holidays to fit name */
+.day-column.is-holiday .day-header {
+  height: calc(var(--day-header-height) + 24px);
+}
+
 .holiday-name {
   display: block;
   font-size: 0.7rem;

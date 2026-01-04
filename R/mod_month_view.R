@@ -157,6 +157,9 @@ mod_month_view_server <- function(id, events, selected_date, calendars) {
           date_str <- as.character(date)
           day_num <- format(date, "%d")
 
+          # Check for holiday
+          holiday_info <- get_holiday_info(date)
+
           # Get events for this day
           day_events <- events_by_day[[date_str]]
           event_count <- if (!is.null(day_events)) length(day_events) else 0
@@ -169,14 +172,20 @@ mod_month_view_server <- function(id, events, selected_date, calendars) {
               if (is_today) "is-today",
               if (is_selected) "is-selected",
               if (!is_current_month) "other-month",
-              if (is_weekend) "is-weekend"
+              if (is_weekend) "is-weekend",
+              if (holiday_info$is_holiday) "is-holiday",
+              holiday_info$class
             ),
             `data-date` = date_str,
+            title = if (holiday_info$is_holiday) holiday_info$name else NULL,
             onclick = sprintf("Shiny.setInputValue('%s', '%s', {priority: 'event'})", ns("day_clicked"), date_str),
             # Day number
             htmltools::div(
               class = "month-day-number",
-              day_num
+              day_num,
+              if (holiday_info$is_holiday) {
+                bsicons::bs_icon("star-fill", class = "holiday-icon", size = "0.6em")
+              }
             ),
             # Event list (shown on larger screens)
             if (event_count > 0) {

@@ -581,6 +581,158 @@
 }
 
 /* ============================================================================
+   Holiday Highlighting
+   ============================================================================ */
+
+/* Base holiday styling */
+.day-column.is-holiday,
+.month-day-cell.is-holiday {
+  position: relative;
+}
+
+.holiday-name {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--bs-primary);
+  text-align: center;
+  margin-top: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.holiday-icon {
+  color: var(--bs-warning);
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+
+/* General holiday - subtle highlight */
+.day-column.holiday-general .day-header,
+.month-day-cell.holiday-general {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--bs-primary-rgb), 0.08) 0%,
+    rgba(var(--bs-primary-rgb), 0.03) 100%
+  );
+}
+
+/* Christmas - red/green theme */
+.day-column.holiday-christmas .day-header {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.12) 0%,
+    rgba(25, 135, 84, 0.08) 100%
+  );
+}
+
+.month-day-cell.holiday-christmas {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.1) 0%,
+    rgba(25, 135, 84, 0.06) 100%
+  ) !important;
+}
+
+.holiday-christmas .holiday-name,
+.holiday-christmas .holiday-icon {
+  color: #dc3545;
+}
+
+/* Patriotic holidays - red/white/blue */
+.day-column.holiday-patriotic .day-header {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.1) 0%,
+    rgba(13, 110, 253, 0.1) 100%
+  );
+}
+
+.month-day-cell.holiday-patriotic {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.08) 0%,
+    rgba(13, 110, 253, 0.08) 100%
+  ) !important;
+}
+
+.holiday-patriotic .holiday-name,
+.holiday-patriotic .holiday-icon {
+  color: #0d6efd;
+}
+
+/* Thanksgiving - orange/brown */
+.day-column.holiday-thanksgiving .day-header {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 152, 0, 0.12) 0%,
+    rgba(121, 85, 72, 0.08) 100%
+  );
+}
+
+.month-day-cell.holiday-thanksgiving {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 152, 0, 0.1) 0%,
+    rgba(121, 85, 72, 0.06) 100%
+  ) !important;
+}
+
+.holiday-thanksgiving .holiday-name,
+.holiday-thanksgiving .holiday-icon {
+  color: #ff9800;
+}
+
+/* New Year - gold/sparkle */
+.day-column.holiday-newyear .day-header {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 193, 7, 0.15) 0%,
+    rgba(156, 39, 176, 0.08) 100%
+  );
+}
+
+.month-day-cell.holiday-newyear {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 193, 7, 0.12) 0%,
+    rgba(156, 39, 176, 0.06) 100%
+  ) !important;
+}
+
+.holiday-newyear .holiday-name,
+.holiday-newyear .holiday-icon {
+  color: #ffc107;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .holiday-name {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-bs-theme="dark"] .holiday-icon {
+  color: #ffc107;
+}
+
+[data-bs-theme="dark"] .day-column.holiday-general .day-header,
+[data-bs-theme="dark"] .month-day-cell.holiday-general {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--bs-primary-rgb), 0.2) 0%,
+    rgba(var(--bs-primary-rgb), 0.1) 100%
+  );
+}
+
+/* Responsive: hide holiday name on small screens */
+@media (max-width: 768px) {
+  .holiday-name {
+    display: none;
+  }
+}
+
+/* ============================================================================
    Day View
    ============================================================================ */
 

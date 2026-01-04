@@ -139,6 +139,9 @@ mod_week_view_server <- function(id, events, selected_date, calendars) {
         day_num <- format(date, "%d")
         month_short <- format(date, "%b")
 
+        # Check for holiday
+        holiday_info <- get_holiday_info(date)
+
         # Filter events for this day
         day_events <- if (!is.null(current_events) && nrow(current_events) > 0) {
           current_events[as.Date(current_events$start) == date, ]
@@ -152,7 +155,9 @@ mod_week_view_server <- function(id, events, selected_date, calendars) {
             "day-column",
             if (is_today) "is-today",
             if (is_past) "is-past",
-            if (is_weekend) "is-weekend"
+            if (is_weekend) "is-weekend",
+            if (holiday_info$is_holiday) "is-holiday",
+            holiday_info$class
           ),
           style = "display: flex; flex-direction: column; background: var(--bs-body-bg, #FDF8F3); min-height: 400px;",
           # Day header
@@ -166,7 +171,10 @@ mod_week_view_server <- function(id, events, selected_date, calendars) {
               if (as.numeric(day_num) == 1 || i == 1) {
                 htmltools::span(class = "day-month", month_short)
               }
-            )
+            ),
+            if (holiday_info$is_holiday) {
+              htmltools::span(class = "holiday-name", holiday_info$name)
+            }
           ),
           # Events container
           htmltools::div(

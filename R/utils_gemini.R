@@ -5,10 +5,9 @@
 #' @name utils_gemini
 #' @keywords internal
 NULL
-
 #' Generate Icon for Chore or Event
 #'
-#' Uses Gemini's image generation (Nano Banana) to create a custom icon.
+#' Uses Gemini's image generation to create a custom icon.
 #'
 #' @param title The chore or event title.
 #' @param type Either "chore" or "event".
@@ -25,9 +24,6 @@ generate_icon <- function(title, type = "chore") {
     return(list(success = FALSE, error = "No GEMINI_API_KEY configured"))
   }
 
-  # Set the API key for gemini.R
-  gemini.R::setAPI(api_key)
-
   prompt <- sprintf(
     "Create a single 3D cartoon-style icon for a %s called '%s'.
 The icon should be:
@@ -39,26 +35,37 @@ Output only the icon image.",
     type, title
   )
 
-  # Create temp file for output
-  temp_file <- tempfile(fileext = ".png")
-  on.exit(unlink(temp_file), add = TRUE)
-
   tryCatch({
-    result_path <- gemini.R::nano_banana(
-      prompt = prompt,
-      type = "generate",
-      output_path = temp_file
-    )
+    # Call Gemini Nano Banana (gemini-2.5-flash-image) directly using httr2
+    resp <- httr2::request("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent") |>
+      httr2::req_headers(
+        `x-goog-api-key` = api_key,
+        `Content-Type` = "application/json"
+      ) |>
+      httr2::req_body_json(list(
+        contents = list(list(
+          parts = list(list(text = prompt))
+        ))
+      )) |>
+      httr2::req_perform()
 
-    if (is.null(result_path) || !file.exists(result_path)) {
-      return(list(success = FALSE, error = "Image generation failed"))
+    result <- httr2::resp_body_json(resp)
+
+    # Extract image data from response
+    parts <- result$candidates[[1]]$content$parts
+    image_part <- NULL
+    for (part in parts) {
+      if (!is.null(part$inlineData)) {
+        image_part <- part$inlineData
+        break
+      }
     }
 
-    # Read the file and convert to base64
-    raw_data <- readBin(result_path, "raw", file.info(result_path)$size)
-    base64_data <- base64enc::base64encode(raw_data)
+    if (is.null(image_part)) {
+      return(list(success = FALSE, error = "No image in response"))
+    }
 
-    list(success = TRUE, base64 = base64_data)
+    list(success = TRUE, base64 = image_part$data)
   }, error = function(e) {
     list(success = FALSE, error = conditionMessage(e))
   })

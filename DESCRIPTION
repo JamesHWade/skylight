@@ -20,7 +20,6 @@ Imports:
     duckdb,
     ellmer,
     gargle,
-    gemini.R,
     glue,
     htmltools,
     httr2,

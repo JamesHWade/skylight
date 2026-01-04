@@ -142,9 +142,14 @@ mod_week_view_server <- function(id, events, selected_date, calendars) {
         # Check for holiday
         holiday_info <- get_holiday_info(date)
 
-        # Filter events for this day
+        # Filter events for this day and add conflict info
         day_events <- if (!is.null(current_events) && nrow(current_events) > 0) {
-          current_events[as.Date(current_events$start) == date, ]
+          de <- current_events[as.Date(current_events$start) == date, ]
+          if (nrow(de) > 0) {
+            add_conflict_info(de)
+          } else {
+            de
+          }
         } else {
           data.frame()
         }
@@ -244,6 +249,10 @@ event_card <- function(event) {
     "#74B9FF"
   }
 
+  # Check for conflicts
+  has_conflict <- isTRUE(event$has_conflict)
+  conflict_count <- if (!is.null(event$conflict_count)) event$conflict_count else 0
+
   # Store event data as JSON for the modal
   event_data <- jsonlite::toJSON(
     list(
@@ -256,13 +265,19 @@ event_card <- function(event) {
       description = if (!is.na(event$description)) event$description else "",
       calendar_name = event$calendar_name,
       color = color,
-      recurring = isTRUE(event$recurring)
+      recurring = isTRUE(event$recurring),
+      has_conflict = has_conflict,
+      conflict_count = conflict_count
     ),
     auto_unbox = TRUE
   )
 
   htmltools::div(
-    class = paste("event-card", if (isTRUE(event$all_day)) "all-day-event"),
+    class = paste(
+      "event-card",
+      if (isTRUE(event$all_day)) "all-day-event",
+      if (has_conflict) "has-conflict"
+    ),
     `data-event-id` = event$id,
     `data-event` = event_data,
     role = "button",
@@ -271,6 +286,14 @@ event_card <- function(event) {
       `--event-color` = color,
       cursor = "pointer"
     ),
+    # Conflict indicator
+    if (has_conflict) {
+      htmltools::span(
+        class = "conflict-indicator",
+        title = paste0("Overlaps with ", conflict_count, " event", if (conflict_count > 1) "s"),
+        bsicons::bs_icon("exclamation-triangle-fill", size = "0.7em")
+      )
+    },
     if (!is.null(start_time)) {
       htmltools::span(class = "event-time", start_time)
     },

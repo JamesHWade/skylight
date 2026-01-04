@@ -126,9 +126,14 @@ mod_day_view_server <- function(id, events, selected_date, calendars) {
       current_minute <- as.numeric(format(now, "%M"))
       is_today <- date == Sys.Date()
 
-      # Filter events for this day
+      # Filter events for this day and add conflict info
       day_events <- if (!is.null(current_events) && nrow(current_events) > 0) {
-        current_events[as.Date(current_events$start) == date, ]
+        de <- current_events[as.Date(current_events$start) == date, ]
+        if (nrow(de) > 0) {
+          add_conflict_info(de)
+        } else {
+          de
+        }
       } else {
         data.frame()
       }
@@ -232,7 +237,11 @@ event_card_detailed <- function(event) {
   end_time <- format(as.POSIXct(event$end), "%l:%M %p")
   color <- event$color %||% "#74B9FF"
 
- # Store event data as JSON for the modal
+  # Check for conflicts
+  has_conflict <- isTRUE(event$has_conflict)
+  conflict_count <- if (!is.null(event$conflict_count)) event$conflict_count else 0
+
+  # Store event data as JSON for the modal
   event_data <- jsonlite::toJSON(
     list(
       id = event$id,
@@ -244,13 +253,15 @@ event_card_detailed <- function(event) {
       description = if (!is.na(event$description)) event$description else "",
       calendar_name = event$calendar_name,
       color = color,
-      recurring = isTRUE(event$recurring)
+      recurring = isTRUE(event$recurring),
+      has_conflict = has_conflict,
+      conflict_count = conflict_count
     ),
     auto_unbox = TRUE
   )
 
   htmltools::div(
-    class = "event-card-detailed",
+    class = paste("event-card-detailed", if (has_conflict) "has-conflict"),
     `data-event-id` = event$id,
     `data-event` = event_data,
     role = "button",
@@ -260,6 +271,15 @@ event_card_detailed <- function(event) {
       `background-color` = paste0(color, "15"),
       cursor = "pointer"
     ),
+    # Conflict indicator
+    if (has_conflict) {
+      htmltools::div(
+        class = "conflict-badge",
+        title = paste0("Overlaps with ", conflict_count, " event", if (conflict_count > 1) "s"),
+        bsicons::bs_icon("exclamation-triangle-fill", size = "0.8em"),
+        " Conflict"
+      )
+    },
     htmltools::div(
       class = "event-header",
       htmltools::span(

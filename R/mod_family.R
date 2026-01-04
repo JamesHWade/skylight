@@ -202,11 +202,7 @@ mod_family_server <- function(id) {
 #'
 #' @keywords internal
 member_row <- function(member, ns) {
-  display <- if (!is.null(member$display_name) && !is.na(member$display_name) && nchar(member$display_name) > 0) {
-    member$display_name
-  } else {
-    member$name
-  }
+  display <- get_member_display_name(member)
 
   htmltools::div(
     class = "family-member-row d-flex align-items-center py-2 px-2 mb-1 rounded",
@@ -254,20 +250,11 @@ member_form <- function(ns, member = NULL) {
   avatar_val <- if (is_edit) member$avatar_emoji else "\U0001F464"
   color_val <- if (is_edit) member$color else "#74B9FF"
 
-  # Common avatar options - named vector for radioButtons
-  avatar_choices <- c(
-    "\U0001F464" = "\U0001F464",
-    "\U0001F466" = "\U0001F466",
-    "\U0001F467" = "\U0001F467",
-    "\U0001F468" = "\U0001F468",
-    "\U0001F469" = "\U0001F469",
-    "\U0001F474" = "\U0001F474",
-    "\U0001F475" = "\U0001F475",
-    "\U0001F476" = "\U0001F476",
-    "\U0001F9D1" = "\U0001F9D1",
-    "\U0001F431" = "\U0001F431",
-    "\U0001F436" = "\U0001F436"
-  )
+  # Common avatar options - self-named vector for radioButtons
+  avatar_emojis <- c("\U0001F464", "\U0001F466", "\U0001F467", "\U0001F468",
+                     "\U0001F469", "\U0001F474", "\U0001F475", "\U0001F476",
+                     "\U0001F9D1", "\U0001F431", "\U0001F436")
+  avatar_choices <- setNames(avatar_emojis, avatar_emojis)
 
   # Color palette matching app theme - values are hex codes
   color_values <- c("#74B9FF", "#FF7675", "#55EFC4", "#A29BFE", "#FFEAA7",

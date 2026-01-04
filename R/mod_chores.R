@@ -340,6 +340,24 @@ mod_chores_server <- function(id, family_members = NULL) {
 # RENDER HELPERS
 # =============================================================================
 
+#' Get Member Display Name
+#'
+#' Returns display_name if set, otherwise falls back to name.
+#'
+#' @param member A single-row member data frame or list with name and display_name.
+#'
+#' @return The display name string.
+#'
+#' @keywords internal
+get_member_display_name <- function(member) {
+  display_name <- member$display_name
+  if (!is.null(display_name) && !is.na(display_name) && nchar(display_name) > 0) {
+    display_name
+  } else {
+    member$name
+  }
+}
+
 #' Render By Person View
 #'
 #' @keywords internal
@@ -369,11 +387,7 @@ render_by_person <- function(members, assignments, ns) {
 #'
 #' @keywords internal
 member_column <- function(member, assignments, ns) {
-  display_name <- if (!is.null(member$display_name) && !is.na(member$display_name) && nchar(member$display_name) > 0) {
-    member$display_name
-  } else {
-    member$name
-  }
+  display_name <- get_member_display_name(member)
 
   # Get member stats
   streak <- tryCatch(get_current_streak(member$id), error = function(e) 0)
@@ -495,6 +509,7 @@ render_leaderboard <- function(leaderboard, ns) {
     lapply(seq_len(nrow(leaderboard)), function(i) {
       member <- leaderboard[i, ]
       is_first <- i == 1 && member$total_points > 0
+      streak <- tryCatch(get_current_streak(member$id), error = function(e) 0)
 
       htmltools::div(
         class = paste("leaderboard-row", if (is_first) "first-place"),
@@ -522,11 +537,8 @@ render_leaderboard <- function(leaderboard, ns) {
         ),
 
         # Streak
-        if (tryCatch(get_current_streak(member$id), error = function(e) 0) > 0) {
-          htmltools::span(
-            class = "streak-badge ms-2",
-            paste0("\U0001F525", get_current_streak(member$id))
-          )
+        if (streak > 0) {
+          htmltools::span(class = "streak-badge ms-2", paste0("\U0001F525", streak))
         }
       )
     })
@@ -605,29 +617,18 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
   cat_val <- if (is_edit) chore$category else "general"
   icon_val <- if (is_edit) chore$icon_emoji else "\U0001F9F9"
 
- # Icon options - named vector for radioButtons
-  icon_choices <- c(
-    "\U0001F9F9" = "\U0001F9F9",
-    "\U0001F37D" = "\U0001F37D",
-    "\U0001F6CF" = "\U0001F6CF",
-    "\U0001F6BF" = "\U0001F6BF",
-    "\U0001F9FA" = "\U0001F9FA",
-    "\U0001F9F4" = "\U0001F9F4",
-    "\U0001F9F5" = "\U0001F9F5",
-    "\U0001F6AE" = "\U0001F6AE",
-    "\U0001F3E0" = "\U0001F3E0",
-    "\U0001F331" = "\U0001F331",
-    "\U0001F436" = "\U0001F436",
-    "\U0001F431" = "\U0001F431"
-  )
+  # Icon options - self-named vector for radioButtons (name = value for emojis)
+  icon_emojis <- c("\U0001F9F9", "\U0001F37D", "\U0001F6CF", "\U0001F6BF",
+                   "\U0001F9FA", "\U0001F9F4", "\U0001F9F5", "\U0001F6AE",
+                   "\U0001F3E0", "\U0001F331", "\U0001F436", "\U0001F431")
+  icon_choices <- setNames(icon_emojis, icon_emojis)
 
   # Member choices for assignment (if members exist)
   member_choices <- if (!is.null(members) && nrow(members) > 0) {
-    choices <- setNames(
+    setNames(
       as.character(members$id),
       paste(members$avatar_emoji, members$display_name %||% members$name)
     )
-    choices
   } else {
     NULL
   }

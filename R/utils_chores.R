@@ -9,27 +9,18 @@
 #'
 #' @keywords internal
 db_init_chores <- function(con) {
+  # Helper to create sequences (ignores if already exists)
+  create_sequence <- function(name) {
+    tryCatch(
+      DBI::dbExecute(con, paste0("CREATE SEQUENCE IF NOT EXISTS ", name, "_id_seq")),
+      error = function(e) NULL
+    )
+  }
+
   # Create sequences for auto-increment IDs
-  tryCatch(
-    DBI::dbExecute(con, "CREATE SEQUENCE IF NOT EXISTS family_members_id_seq"),
-    error = function(e) NULL
-  )
-  tryCatch(
-    DBI::dbExecute(con, "CREATE SEQUENCE IF NOT EXISTS chores_id_seq"),
-    error = function(e) NULL
-  )
-  tryCatch(
-    DBI::dbExecute(con, "CREATE SEQUENCE IF NOT EXISTS chore_assignments_id_seq"),
-    error = function(e) NULL
-  )
-  tryCatch(
-    DBI::dbExecute(con, "CREATE SEQUENCE IF NOT EXISTS chore_completions_id_seq"),
-    error = function(e) NULL
-  )
-  tryCatch(
-    DBI::dbExecute(con, "CREATE SEQUENCE IF NOT EXISTS chore_rotations_id_seq"),
-    error = function(e) NULL
-  )
+  sequences <- c("family_members", "chores", "chore_assignments",
+                 "chore_completions", "chore_rotations")
+  lapply(sequences, create_sequence)
 
   # Family members table
 
@@ -205,6 +196,38 @@ create_family_member <- function(name,
   result$id[1]
 }
 
+#' Dynamic Update Helper
+#'
+#' Builds and executes a parameterized UPDATE query with timestamp.
+#'
+#' @param table Table name.
+#' @param id Record ID.
+#' @param updates Named list of field=value pairs.
+#' @param valid_fields Vector of allowed field names.
+#'
+#' @return TRUE on success.
+#'
+#' @keywords internal
+db_update_record <- function(table, id, updates, valid_fields) {
+  if (length(updates) == 0) return(invisible(TRUE))
+
+  updates <- updates[names(updates) %in% valid_fields]
+  if (length(updates) == 0) return(invisible(TRUE))
+
+  set_clause <- paste(
+    paste0(names(updates), " = ?"),
+    collapse = ", "
+  )
+  set_clause <- paste(set_clause, ", updated_at = CURRENT_TIMESTAMP")
+
+  db_execute(
+    paste("UPDATE", table, "SET", set_clause, "WHERE id = ?"),
+    params = c(unname(updates), list(id))
+  )
+
+  invisible(TRUE)
+}
+
 #' Update Family Member
 #'
 #' @param id The member ID.
@@ -214,28 +237,12 @@ create_family_member <- function(name,
 #'
 #' @export
 update_family_member <- function(id, ...) {
-  updates <- list(...)
-  if (length(updates) == 0) return(invisible(TRUE))
-
-  valid_fields <- c("name", "display_name", "avatar_emoji", "color", "birth_date", "is_active")
-  updates <- updates[names(updates) %in% valid_fields]
-
-  if (length(updates) == 0) return(invisible(TRUE))
-
-  set_clause <- paste(
-    sapply(names(updates), function(n) paste0(n, " = ?")),
-    collapse = ", "
+  db_update_record(
+    table = "family_members",
+    id = id,
+    updates = list(...),
+    valid_fields = c("name", "display_name", "avatar_emoji", "color", "birth_date", "is_active")
   )
-  set_clause <- paste(set_clause, ", updated_at = CURRENT_TIMESTAMP")
-
-  params <- c(unname(updates), list(id))
-
-  db_execute(
-    paste("UPDATE family_members SET", set_clause, "WHERE id = ?"),
-    params = params
-  )
-
-  invisible(TRUE)
 }
 
 #' Delete Family Member
@@ -269,8 +276,7 @@ get_chores <- function(active_only = TRUE, category = NULL) {
   query <- "SELECT * FROM chores WHERE 1=1"
   params <- list()
 
-
-if (active_only) {
+  if (active_only) {
     query <- paste(query, "AND is_active = TRUE")
   }
 
@@ -281,11 +287,7 @@ if (active_only) {
 
   query <- paste(query, "ORDER BY title")
 
-  if (length(params) == 0) {
-    db_query(query)
-  } else {
-    db_query(query, params = params)
-  }
+  db_query(query, params = params)
 }
 
 #' Get Chore by ID
@@ -352,29 +354,13 @@ create_chore <- function(title,
 #'
 #' @export
 update_chore <- function(id, ...) {
-  updates <- list(...)
-  if (length(updates) == 0) return(invisible(TRUE))
-
-  valid_fields <- c("title", "description", "points", "frequency", "frequency_days",
-                    "category", "estimated_minutes", "icon_emoji", "icon_base64", "is_active")
-  updates <- updates[names(updates) %in% valid_fields]
-
-  if (length(updates) == 0) return(invisible(TRUE))
-
-  set_clause <- paste(
-    sapply(names(updates), function(n) paste0(n, " = ?")),
-    collapse = ", "
+  db_update_record(
+    table = "chores",
+    id = id,
+    updates = list(...),
+    valid_fields = c("title", "description", "points", "frequency", "frequency_days",
+                     "category", "estimated_minutes", "icon_emoji", "icon_base64", "is_active")
   )
-  set_clause <- paste(set_clause, ", updated_at = CURRENT_TIMESTAMP")
-
-  params <- c(unname(updates), list(id))
-
-  db_execute(
-    paste("UPDATE chores SET", set_clause, "WHERE id = ?"),
-    params = params
-  )
-
-  invisible(TRUE)
 }
 
 #' Delete Chore

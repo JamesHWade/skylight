@@ -218,6 +218,114 @@
   });
 
   // =========================================================================
+  // Browser Geolocation for Weather Widget
+  // =========================================================================
+
+  const LOCATION_CACHE_KEY = 'skylight_user_location';
+  const LOCATION_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+  const getCachedLocation = function() {
+    try {
+      const cached = localStorage.getItem(LOCATION_CACHE_KEY);
+      if (!cached) return null;
+
+      const data = JSON.parse(cached);
+      const now = Date.now();
+
+      // Check if cache is still valid
+      if (data.timestamp && (now - data.timestamp) < LOCATION_CACHE_DURATION) {
+        return data;
+      }
+
+      // Cache expired
+      localStorage.removeItem(LOCATION_CACHE_KEY);
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const cacheLocation = function(lat, lon, source) {
+    try {
+      localStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
+        lat: lat,
+        lon: lon,
+        source: source,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.warn('Failed to cache location:', e);
+    }
+  };
+
+  const sendLocationToShiny = function(lat, lon, source) {
+    if (typeof Shiny !== 'undefined' && Shiny.setInputValue) {
+      Shiny.setInputValue('browser_geolocation', {
+        lat: lat,
+        lon: lon,
+        source: source,
+        timestamp: Date.now()
+      });
+    }
+  };
+
+  const requestGeolocation = function() {
+    // First check cache
+    const cached = getCachedLocation();
+    if (cached) {
+      sendLocationToShiny(cached.lat, cached.lon, 'cache');
+      return;
+    }
+
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+      console.log('Geolocation not supported');
+      sendLocationToShiny(null, null, 'unsupported');
+      return;
+    }
+
+    // Request location
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        // Cache the location
+        cacheLocation(lat, lon, 'browser');
+
+        // Send to Shiny
+        sendLocationToShiny(lat, lon, 'browser');
+      },
+      function(error) {
+        console.log('Geolocation error:', error.message);
+        sendLocationToShiny(null, null, 'denied');
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000 // 5 minutes
+      }
+    );
+  };
+
+  // Request geolocation when Shiny is ready
+  if (typeof Shiny !== 'undefined') {
+    $(document).on('shiny:connected', function() {
+      // Small delay to let the app initialize
+      setTimeout(requestGeolocation, 1000);
+    });
+  }
+
+  // Listen for location refresh requests from Shiny
+  if (typeof Shiny !== 'undefined') {
+    Shiny.addCustomMessageHandler('refresh-geolocation', function(message) {
+      // Clear cache and re-request
+      localStorage.removeItem(LOCATION_CACHE_KEY);
+      requestGeolocation();
+    });
+  }
+
+  // =========================================================================
   // Service Worker Registration (PWA) - Disabled until sw.js is created
   // =========================================================================
 

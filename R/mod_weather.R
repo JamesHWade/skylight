@@ -24,16 +24,21 @@ mod_weather_ui <- function(id) {
 #' Weather Widget Module Server
 #'
 #' Fetches and displays weather data from OpenWeatherMap API.
+#' Supports browser geolocation for automatic location detection.
 #'
 #' @param id Module namespace ID
-#' @param lat Reactive or static latitude (default: NULL, will use config)
-#' @param lon Reactive or static longitude (default: NULL, will use config)
+#' @param lat Reactive or static latitude (default: NULL, will use browser/config)
+#' @param lon Reactive or static longitude (default: NULL, will use browser/config)
+#' @param root_session The root Shiny session (for accessing global inputs)
 #'
 #' @keywords internal
-mod_weather_server <- function(id, lat = NULL, lon = NULL) {
+mod_weather_server <- function(id, lat = NULL, lon = NULL, root_session = NULL) {
 
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Get root session for accessing global inputs (browser_geolocation)
+    root <- root_session %||% shiny::getDefaultReactiveDomain()
 
     # Weather data cache (refresh every 10 minutes)
     weather_cache <- shiny::reactiveVal(NULL)
@@ -42,25 +47,47 @@ mod_weather_server <- function(id, lat = NULL, lon = NULL) {
     last_forecast_fetch <- shiny::reactiveVal(NULL)
     cache_duration <- 600  # 10 minutes in seconds
 
-    # Get coordinates (default to a reasonable location if not configured)
+    # Browser geolocation storage
+    browser_location <- shiny::reactiveVal(NULL)
+
+    # Watch for browser geolocation updates
+    shiny::observe({
+      geo <- root$input$browser_geolocation
+      if (!is.null(geo) && !is.null(geo$lat) && !is.null(geo$lon)) {
+        browser_location(list(lat = geo$lat, lon = geo$lon, source = geo$source))
+        # Invalidate weather cache when location changes
+        weather_cache(NULL)
+        forecast_cache(NULL)
+      }
+    })
+
+    # Get coordinates with priority: browser > env vars > defaults
     get_coords <- function() {
-      lat_val <- if (is.null(lat)) {
-        as.numeric(Sys.getenv("SKYLIGHT_WEATHER_LAT", "37.7749"))  # SF default
-      } else if (is.reactive(lat)) {
-        lat()
-      } else {
-        lat
+      # Priority 1: Explicit lat/lon parameters
+      if (!is.null(lat) && !is.null(lon)) {
+        lat_val <- if (is.reactive(lat)) lat() else lat
+        lon_val <- if (is.reactive(lon)) lon() else lon
+        return(list(lat = lat_val, lon = lon_val))
       }
 
-      lon_val <- if (is.null(lon)) {
-        as.numeric(Sys.getenv("SKYLIGHT_WEATHER_LON", "-122.4194"))  # SF default
-      } else if (is.reactive(lon)) {
-        lon()
-      } else {
-        lon
+      # Priority 2: Browser geolocation
+      browser_loc <- browser_location()
+      if (!is.null(browser_loc)) {
+        return(list(lat = browser_loc$lat, lon = browser_loc$lon))
       }
 
-      list(lat = lat_val, lon = lon_val)
+      # Priority 3: Environment variables
+      env_lat <- Sys.getenv("SKYLIGHT_WEATHER_LAT", "")
+      env_lon <- Sys.getenv("SKYLIGHT_WEATHER_LON", "")
+      if (env_lat != "" && env_lon != "") {
+        return(list(
+          lat = as.numeric(env_lat),
+          lon = as.numeric(env_lon)
+        ))
+      }
+
+      # Priority 4: Default (San Francisco)
+      list(lat = 37.7749, lon = -122.4194)
     }
 
     # Fetch weather data from OpenWeatherMap
@@ -235,6 +262,20 @@ mod_weather_server <- function(id, lat = NULL, lon = NULL) {
     shiny::observeEvent(input$weather_click, {
       weather <- weather_data()
       forecast <- forecast_data()
+      browser_loc <- browser_location()
+
+      # Determine location source for display
+      location_source <- if (!is.null(browser_loc)) {
+        if (browser_loc$source == "browser") {
+          "Using your location"
+        } else if (browser_loc$source == "cache") {
+          "Using cached location"
+        } else {
+          "Using default location"
+        }
+      } else {
+        "Using default location"
+      }
 
       shiny::showModal(
         shiny::modalDialog(
@@ -247,7 +288,22 @@ mod_weather_server <- function(id, lat = NULL, lon = NULL) {
           ),
           size = "l",
           easyClose = TRUE,
-          footer = shiny::modalButton("Close"),
+          footer = htmltools::div(
+            class = "d-flex justify-content-between align-items-center w-100",
+            htmltools::div(
+              class = "d-flex align-items-center gap-2 text-muted small",
+              bsicons::bs_icon("geo-alt", size = "0.9rem"),
+              htmltools::span(location_source),
+              htmltools::tags$button(
+                type = "button",
+                class = "btn btn-link btn-sm p-0 ms-1",
+                onclick = "Shiny.setInputValue('refresh_location', Date.now()); localStorage.removeItem('skylight_user_location');",
+                title = "Update location",
+                bsicons::bs_icon("arrow-clockwise", size = "0.9rem")
+              )
+            ),
+            shiny::modalButton("Close")
+          ),
 
           # Modal content
           if (!weather$success) {
@@ -338,6 +394,16 @@ mod_weather_server <- function(id, lat = NULL, lon = NULL) {
           }
         )
       )
+    }, ignoreInit = TRUE)
+
+    # Handle location refresh request
+    shiny::observeEvent(root$input$refresh_location, {
+      # Clear caches to force re-fetch
+      browser_location(NULL)
+      weather_cache(NULL)
+      forecast_cache(NULL)
+      # Request new geolocation from browser
+      session$sendCustomMessage("refresh-geolocation", list())
     }, ignoreInit = TRUE)
 
     # Map OpenWeatherMap icon codes to Bootstrap icons

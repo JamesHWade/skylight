@@ -40,31 +40,19 @@ mod_chat_ui <- function(id) {
         messages = list(
           list(
             role = "assistant",
-            content = "Hi! I'm your calendar assistant. Ask me about your schedule, find free time, or add new events using natural language."
+            content = paste(
+              "Hi! I'm your calendar assistant. Ask me about your schedule,",
+              "find free time, or add new events using natural language.\n\n",
+              "Try one of these:\n\n",
+              "- <span class='suggestion submit'>What's on my calendar today?</span>\n",
+              "- <span class='suggestion submit'>When am I free tomorrow?</span>\n",
+              "- <span class='suggestion'>Add an event</span>"
+            )
           )
         ),
         placeholder = "Ask about your calendar...",
         fill = TRUE,
         height = "100%"
-      )
-    ),
-
-    # Suggestion chips below the chat
-    htmltools::div(
-      class = "chat-suggestions p-2 border-top",
-      lapply(
-        c(
-          "What's on my calendar today?",
-          "Add soccer practice Tuesday 4pm",
-          "When am I free tomorrow?"
-        ),
-        function(suggestion) {
-          shiny::actionLink(
-            ns(paste0("suggest_", digest::digest(suggestion, algo = "crc32"))),
-            suggestion,
-            class = "chat-suggestion badge bg-light text-dark me-1"
-          )
-        }
       )
     )
   )
@@ -118,6 +106,7 @@ mod_chat_server <- function(id, events, calendars, selected_date,
     }) |> shiny::bindEvent(events(), calendars(), once = FALSE)
 
     # Handle user input from shinychat (input$chat_user_input)
+    # This handles both typed messages and suggestion clicks
     shiny::observeEvent(input$chat_user_input, {
       user_message <- input$chat_user_input
       shiny::req(nchar(trimws(user_message)) > 0)
@@ -145,54 +134,25 @@ mod_chat_server <- function(id, events, calendars, selected_date,
         # Use streaming for better UX
         stream <- chat_obj$stream(full_message)
         shinychat::chat_append("chat", stream, session = session)
-
-        # Save to database (get the full response text)
-        # Note: streaming means we don't easily get the full text here
-        # We'll save asynchronously or skip for now
       }, error = function(e) {
         error_msg <- paste("Sorry, I encountered an error:", conditionMessage(e))
         shinychat::chat_append("chat", error_msg, session = session)
       })
     }, ignoreInit = TRUE)
 
-    # Handle suggestion clicks
-    suggestions <- c(
-      "What's on my calendar today?",
-      "Add soccer practice Tuesday 4pm",
-      "When am I free tomorrow?"
-    )
-
-    lapply(suggestions, function(suggestion) {
-      input_id <- paste0("suggest_", digest::digest(suggestion, algo = "crc32"))
-      shiny::observeEvent(input[[input_id]], {
-        # Add as user message and trigger the chat
-        shinychat::chat_append("chat", suggestion, role = "user", session = session)
-
-        # Process the suggestion through the chat
-        chat_obj <- chat_instance()
-        if (!is.null(chat_obj)) {
-          events_context <- build_events_context(events())
-          full_message <- paste0(suggestion, events_context)
-          tryCatch({
-            stream <- chat_obj$stream(full_message)
-            shinychat::chat_append("chat", stream, session = session)
-          }, error = function(e) {
-            error_msg <- paste("Sorry, I encountered an error:", conditionMessage(e))
-            shinychat::chat_append("chat", error_msg, session = session)
-          })
-        }
-      }, ignoreInit = TRUE)
-    })
-
-    # Clear chat - reset with welcome message
+    # Clear chat - reset with welcome message including suggestions
     shiny::observeEvent(input$clear_chat, {
       shinychat::chat_clear("chat", session = session)
-      # Re-add welcome message
-      shinychat::chat_append(
-        "chat",
-        "Hi! I'm your calendar assistant. Ask me about your schedule, find free time, or add new events using natural language.",
-        session = session
+      # Re-add welcome message with suggestions
+      welcome_msg <- paste(
+        "Hi! I'm your calendar assistant. Ask me about your schedule,",
+        "find free time, or add new events using natural language.\n\n",
+        "Try one of these:\n\n",
+        "- <span class='suggestion submit'>What's on my calendar today?</span>\n",
+        "- <span class='suggestion submit'>When am I free tomorrow?</span>\n",
+        "- <span class='suggestion'>Add an event</span>"
       )
+      shinychat::chat_append("chat", welcome_msg, session = session)
       # Reset the chat instance to clear conversation history
       chat_instance(NULL)
     })
@@ -312,6 +272,16 @@ create_calendar_chat <- function(events, calendars,
     - If you don't have enough information, ask for clarification
     - Focus on being helpful for a family with busy schedules
     - When creating events, confirm the details with a brief summary after creation
+
+    ## Showing prompt suggestions
+
+    After answering, suggest 2-3 relevant follow-up prompts based on the conversation.
+    Wrap each suggestion in `<span class=\"suggestion\">` tags.
+    Use \"You might also ask:\" to introduce them. For example:
+
+    You might also ask:
+    - <span class=\"suggestion\">What's happening next week?</span>
+    - <span class=\"suggestion\">Add a reminder for tomorrow</span>
   ")
 
   # Create ellmer chat

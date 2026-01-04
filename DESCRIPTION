@@ -16,7 +16,6 @@ Imports:
     bslib (>= 0.6.0),
     cachem,
     DBI,
-    digest,
     duckdb,
     ellmer,
     gargle,

@@ -273,7 +273,12 @@ mod_chores_server <- function(id, family_members = NULL) {
     output$icon_preview <- shiny::renderUI({
       icon_data <- generated_icon()
       if (is.null(icon_data) || nchar(icon_data) == 0) {
-        return(NULL)
+        # Show placeholder when no icon generated
+        return(htmltools::div(
+          class = "icon-preview-placeholder",
+          bsicons::bs_icon("image", size = "2rem", class = "text-muted"),
+          htmltools::span(class = "small text-muted d-block mt-1", "No icon yet")
+        ))
       }
 
       htmltools::div(
@@ -296,6 +301,16 @@ mod_chores_server <- function(id, family_members = NULL) {
     # Clear generated icon
     shiny::observeEvent(input$clear_generated_icon, {
       generated_icon(NULL)
+    })
+
+    # Use emoji instead of AI icon
+    shiny::observeEvent(input$use_emoji_icon, {
+      generated_icon(NULL)  # Clear any generated icon
+      shiny::showNotification(
+        paste("Using emoji:", input$chore_icon),
+        type = "message",
+        duration = 2
+      )
     })
 
     # Save new chore
@@ -831,40 +846,60 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
       ),
       selected = cat_val
     ),
-    # Icon section with emoji picker and AI generate option
+    # Icon section - AI generated is primary, emoji is fallback
     htmltools::div(
       class = "icon-section mb-3",
       htmltools::tags$label(class = "form-label", "Icon"),
+
+      # AI icon area (primary)
       htmltools::div(
-        class = "d-flex gap-3 align-items-start",
-        # Emoji picker
+        class = "ai-icon-section mb-2",
+        shiny::uiOutput(ns("icon_preview")),
+        if (gemini_available()) {
+          htmltools::div(
+            class = "d-flex gap-2 align-items-center mt-2",
+            shiny::actionButton(
+              ns("generate_icon"),
+              htmltools::tagList(bsicons::bs_icon("stars"), "Generate Icon"),
+              class = "btn-outline-primary btn-sm"
+            ),
+            htmltools::span(
+              class = "small text-muted",
+              "AI-generated based on chore name"
+            )
+          )
+        } else {
+          htmltools::div(
+            class = "text-muted small",
+            bsicons::bs_icon("info-circle"),
+            " Set GEMINI_API_KEY for AI icons"
+          )
+        }
+      ),
+
+      # Emoji fallback (collapsed by default)
+      htmltools::tags$details(
+        class = "emoji-fallback mt-2",
+        htmltools::tags$summary(
+          class = "text-muted small cursor-pointer",
+          "Or choose an emoji instead..."
+        ),
         htmltools::div(
-          class = "flex-grow-1",
+          class = "pt-2",
           shiny::radioButtons(
             ns("chore_icon"),
             NULL,
             choices = icon_choices,
             selected = icon_val,
             inline = TRUE
-          ) |> htmltools::tagAppendAttributes(class = "icon-radio-picker")
-        ),
-        # AI generate button and preview
-        htmltools::div(
-          class = "icon-generate-section",
+          ) |> htmltools::tagAppendAttributes(class = "icon-radio-picker"),
           shiny::actionButton(
-            ns("generate_icon"),
-            htmltools::tagList(bsicons::bs_icon("stars"), "Generate"),
-            class = "btn-outline-primary btn-sm mb-2",
-            disabled = if (gemini_available()) NULL else "disabled",
-            title = if (gemini_available()) "Generate AI icon" else "GEMINI_API_KEY not configured"
-          ),
-          # Preview area for generated icon
-          shiny::uiOutput(ns("icon_preview"))
+            ns("use_emoji_icon"),
+            "Use this emoji",
+            class = "btn-outline-secondary btn-sm mt-2"
+          )
         )
-      ),
-      # Hidden input for base64 data
-      shiny::textInput(ns("icon_base64"), NULL, value = "") |>
-        htmltools::tagAppendAttributes(style = "display:none;")
+      )
     ),
     shiny::textAreaInput(
       ns("chore_description"),

@@ -28,15 +28,59 @@ db_init <- function() {
     )
   ")
 
-  # Create chat history table
-  DBI::dbExecute(con, "
-    CREATE TABLE IF NOT EXISTS chat_history (
-      id INTEGER PRIMARY KEY,
-      user_message VARCHAR,
-      assistant_response VARCHAR,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  ")
+  # Create sequence for chat history IDs (DuckDB doesn't auto-increment PRIMARY KEY)
+  tryCatch(
+    DBI::dbExecute(con, "CREATE SEQUENCE IF NOT EXISTS chat_history_id_seq"),
+    error = function(e) NULL
+  )
+
+  # Migration: if chat_history table exists without the sequence default, recreate it
+  # This handles databases created before the sequence was added
+  if (DBI::dbExistsTable(con, "chat_history")) {
+    # Check if we need to migrate by testing an insert
+    needs_migration <- tryCatch({
+      DBI::dbExecute(con, "
+        INSERT INTO chat_history (user_message, assistant_response)
+        VALUES ('_migration_test_', '_migration_test_')
+      ")
+      # Clean up test row
+      DBI::dbExecute(con, "
+        DELETE FROM chat_history WHERE user_message = '_migration_test_'
+      ")
+      FALSE
+    }, error = function(e) {
+      grepl("NOT NULL constraint", e$message)
+    })
+
+    if (needs_migration) {
+      # Recreate table with proper sequence (preserving data)
+      DBI::dbExecute(con, "ALTER TABLE chat_history RENAME TO chat_history_old")
+      DBI::dbExecute(con, "
+        CREATE TABLE chat_history (
+          id INTEGER PRIMARY KEY DEFAULT nextval('chat_history_id_seq'),
+          user_message VARCHAR,
+          assistant_response VARCHAR,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      ")
+      # Copy old data
+      DBI::dbExecute(con, "
+        INSERT INTO chat_history (user_message, assistant_response, created_at)
+        SELECT user_message, assistant_response, created_at FROM chat_history_old
+      ")
+      DBI::dbExecute(con, "DROP TABLE chat_history_old")
+    }
+  } else {
+    # Create chat history table (new database)
+    DBI::dbExecute(con, "
+      CREATE TABLE IF NOT EXISTS chat_history (
+        id INTEGER PRIMARY KEY DEFAULT nextval('chat_history_id_seq'),
+        user_message VARCHAR,
+        assistant_response VARCHAR,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    ")
+  }
 
   # Create settings table
   DBI::dbExecute(con, "

@@ -97,12 +97,14 @@ add_external_resources <- function() {
         htmltools::tags$script(src = "www/custom.js")
       )
     },
-    # PWA manifest for iPad home screen
+    # PWA manifest and meta tags
     htmltools::tags$head(
       htmltools::tags$link(rel = "manifest", href = "www/manifest.json"),
+      htmltools::tags$meta(name = "theme-color", content = "#74B9FF"),
       htmltools::tags$meta(name = "apple-mobile-web-app-capable", content = "yes"),
       htmltools::tags$meta(name = "apple-mobile-web-app-status-bar-style", content = "default"),
-      htmltools::tags$meta(name = "apple-mobile-web-app-title", content = "Skylight")
+      htmltools::tags$meta(name = "apple-mobile-web-app-title", content = "Skylight"),
+      htmltools::tags$link(rel = "apple-touch-icon", href = "www/icon-192.png")
     ),
     # Viewport for mobile
     htmltools::tags$head(

@@ -326,20 +326,25 @@
   }
 
   // =========================================================================
-  // Service Worker Registration (PWA) - Disabled until sw.js is created
+  // Service Worker Registration (PWA)
   // =========================================================================
 
-  // if ('serviceWorker' in navigator) {
-  //   window.addEventListener('load', function() {
-  //     navigator.serviceWorker.register('/www/sw.js')
-  //       .then(function(registration) {
-  //         console.log('ServiceWorker registration successful');
-  //       })
-  //       .catch(function(err) {
-  //         console.log('ServiceWorker registration failed:', err);
-  //       });
-  //   });
-  // }
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/www/sw.js')
+        .then(function(registration) {
+          console.log('[Skylight] Service Worker registered');
+
+          // Check for updates periodically
+          setInterval(function() {
+            registration.update();
+          }, 60 * 60 * 1000); // Check every hour
+        })
+        .catch(function(err) {
+          console.log('[Skylight] Service Worker registration failed:', err);
+        });
+    });
+  }
 
   // =========================================================================
   // Remove Hamburger Toggler (Aggressive - MutationObserver)

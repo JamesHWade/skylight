@@ -31,6 +31,13 @@ mod_chores_ui <- function(id) {
         class = "chores-header-right",
         style = "display: flex; gap: 0.5rem;",
         shiny::actionButton(
+          ns("manage_chores"),
+          "",
+          icon = bsicons::bs_icon("list-check"),
+          class = "btn-outline-secondary",
+          title = "Manage All Chores"
+        ),
+        shiny::actionButton(
           ns("manage_family"),
           "",
           icon = bsicons::bs_icon("people"),
@@ -324,7 +331,145 @@ mod_chores_server <- function(id, family_members = NULL) {
       shiny::showNotification(paste("Chore", shQuote(title), "created!"), type = "message")
     })
 
-    # Manage family modal
+    # Manage all chores modal
+    shiny::observeEvent(input$manage_chores, {
+      shiny::showModal(shiny::modalDialog(
+        title = htmltools::div(
+          class = "d-flex align-items-center gap-2",
+          bsicons::bs_icon("list-check"),
+          "Manage Chores"
+        ),
+        size = "l",
+        easyClose = TRUE,
+        footer = shiny::modalButton("Done"),
+        shiny::uiOutput(ns("manage_chores_content"))
+      ))
+    })
+
+    # Render manage chores content
+    output$manage_chores_content <- shiny::renderUI({
+      refresh_trigger()  # React to changes
+      all_chores <- get_chores(active_only = TRUE)
+      m <- members()
+
+      if (is.null(all_chores) || nrow(all_chores) == 0) {
+        return(htmltools::div(
+          class = "text-center text-muted py-4",
+          htmltools::p("No chores defined yet."),
+          htmltools::p(class = "small", "Click 'Add Chore' to create one!")
+        ))
+      }
+
+      # Get today's assignments to show status
+      today_assignments <- get_assignments_for_date(Sys.Date())
+
+      htmltools::div(
+        class = "manage-chores-list",
+        lapply(seq_len(nrow(all_chores)), function(i) {
+          chore <- all_chores[i, ]
+
+          # Check who has this chore assigned today
+          chore_today <- today_assignments[today_assignments$chore_id == chore$id, ]
+          assigned_member_ids <- if (nrow(chore_today) > 0) chore_today$member_id else integer(0)
+
+          htmltools::div(
+            class = "manage-chore-item d-flex align-items-center gap-3 p-3 border-bottom",
+            # Icon and title
+            htmltools::div(
+              class = "d-flex align-items-center gap-2 flex-grow-1",
+              render_chore_icon(chore$icon_base64, chore$icon_emoji, size = "2rem"),
+              htmltools::div(
+                htmltools::div(class = "fw-medium", chore$title),
+                htmltools::div(
+                  class = "small text-muted",
+                  paste0(chore$points, " pts • ", chore$frequency)
+                )
+              )
+            ),
+            # Quick assign checkboxes for today
+            htmltools::div(
+              class = "d-flex gap-2 align-items-center",
+              htmltools::span(class = "small text-muted me-2", "Today:"),
+              if (!is.null(m) && nrow(m) > 0) {
+                lapply(seq_len(nrow(m)), function(j) {
+                  member <- m[j, ]
+                  is_assigned <- member$id %in% assigned_member_ids
+                  input_id <- paste0("assign_", chore$id, "_", member$id)
+                  htmltools::div(
+                    class = "form-check form-check-inline",
+                    title = member$name,
+                    shiny::tags$input(
+                      type = "checkbox",
+                      class = "form-check-input",
+                      id = ns(input_id),
+                      checked = if (is_assigned) "checked" else NULL,
+                      onclick = sprintf(
+                        "Shiny.setInputValue('%s', {chore_id: %d, member_id: %d, checked: this.checked, nonce: Math.random()})",
+                        ns("quick_assign"), chore$id, member$id
+                      )
+                    ),
+                    htmltools::tags$label(
+                      class = "form-check-label",
+                      `for` = ns(input_id),
+                      member$avatar_emoji
+                    )
+                  )
+                })
+              }
+            ),
+            # Delete button
+            shiny::actionButton(
+              ns(paste0("delete_chore_", chore$id)),
+              "",
+              icon = bsicons::bs_icon("trash"),
+              class = "btn-outline-danger btn-sm",
+              title = "Delete chore",
+              onclick = sprintf(
+                "Shiny.setInputValue('%s', {id: %d, nonce: Math.random()})",
+                ns("delete_chore"), chore$id
+              )
+            )
+          )
+        })
+      )
+    })
+
+    # Handle quick assign toggle
+    shiny::observeEvent(input$quick_assign, {
+      data <- input$quick_assign
+      if (is.null(data)) return()
+
+      if (data$checked) {
+        # Create assignment for today
+        create_assignment(data$chore_id, data$member_id, Sys.Date())
+        shiny::showNotification("Chore assigned!", type = "message", duration = 2)
+      } else {
+        # Remove assignment for today
+        existing <- db_query("
+          SELECT id FROM chore_assignments
+          WHERE chore_id = ? AND member_id = ? AND assigned_date = ? AND status = 'pending'
+        ", params = list(data$chore_id, data$member_id, as.character(Sys.Date())))
+
+        if (nrow(existing) > 0) {
+          db_execute("DELETE FROM chore_assignments WHERE id = ?",
+                     params = list(existing$id[1]))
+          shiny::showNotification("Assignment removed", type = "warning", duration = 2)
+        }
+      }
+      refresh_trigger(refresh_trigger() + 1)
+    }, ignoreInit = TRUE)
+
+    # Handle chore deletion
+    shiny::observeEvent(input$delete_chore, {
+      data <- input$delete_chore
+      if (is.null(data)) return()
+
+      # Soft delete the chore
+      delete_chore(data$id)
+      shiny::showNotification("Chore deleted", type = "warning", duration = 2)
+      refresh_trigger(refresh_trigger() + 1)
+    }, ignoreInit = TRUE)
+
     shiny::observeEvent(input$manage_family, {
       shiny::showModal(shiny::modalDialog(
         title = "Manage Family Members",

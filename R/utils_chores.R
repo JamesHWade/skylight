@@ -66,6 +66,13 @@ db_init_chores <- function(con) {
     )
   ")
 
+  # Migration: Add icon_base64 column to existing databases
+  tryCatch({
+    DBI::dbExecute(con, "ALTER TABLE chores ADD COLUMN icon_base64 VARCHAR")
+  }, error = function(e) {
+    # Column already exists, ignore
+  })
+
   # Chore assignments table
   DBI::dbExecute(con, "
     CREATE TABLE IF NOT EXISTS chore_assignments (

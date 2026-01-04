@@ -201,16 +201,16 @@ mod_chores_server <- function(id, family_members = NULL) {
       existing <- created_observers()
 
       lapply(a$id, function(assignment_id) {
-        complete_id <- paste0("complete_", assignment_id)
+        # Use a separate input name for click events to avoid conflict with checkbox binding
+        click_id <- paste0("toggle_click_", assignment_id)
 
         # Only create observer if not already created
-        if (complete_id %in% existing) return()
+        if (click_id %in% existing) return()
 
-        # Mark as created
-        created_observers(c(created_observers(), complete_id))
+        created_observers(c(created_observers(), click_id))
 
-        shiny::observeEvent(input[[complete_id]], {
-          # Try to toggle - functions are now atomic and idempotent
+        shiny::observeEvent(input[[click_id]], {
+          # Try to toggle - functions are atomic and idempotent
           # First try to complete, if that fails try to uncomplete
           result <- complete_assignment(assignment_id)
           if (result$success) {
@@ -221,7 +221,6 @@ mod_chores_server <- function(id, family_members = NULL) {
             if (result$success) {
               shiny::showNotification("Chore uncompleted", type = "warning", duration = 2)
             }
-            # If neither worked, someone else toggled it - just refresh silently
           }
           refresh_trigger(refresh_trigger() + 1)
         }, ignoreInit = TRUE, once = FALSE)
@@ -488,7 +487,7 @@ render_by_chore <- function(assignments, ns) {
                 class = "form-check-input chore-checkbox",
                 id = ns(paste0("complete_", a$id)),
                 checked = if (a$status == "completed") "checked" else NULL,
-                onclick = sprintf("Shiny.setInputValue('%s', Math.random())", ns(paste0("complete_", a$id)))
+                onclick = sprintf("Shiny.setInputValue('%s', Math.random())", ns(paste0("toggle_click_", a$id)))
               ),
               htmltools::span(class = "assignee-avatar", a$member_avatar),
               htmltools::span(class = "assignee-name", a$member_display_name %||% a$member_name)
@@ -563,13 +562,13 @@ chore_card <- function(assignment, ns, show_member = TRUE) {
     class = paste("chore-card", if (is_completed) "completed"),
     `data-assignment-id` = assignment$id,
 
-    # Checkbox
+    # Checkbox - uses toggle_click_ input to avoid Shiny checkbox binding conflicts
     shiny::tags$input(
       type = "checkbox",
       class = "form-check-input chore-checkbox",
       id = ns(paste0("complete_", assignment$id)),
       checked = if (is_completed) "checked" else NULL,
-      onclick = sprintf("Shiny.setInputValue('%s', Math.random())", ns(paste0("complete_", assignment$id)))
+      onclick = sprintf("Shiny.setInputValue('%s', Math.random())", ns(paste0("toggle_click_", assignment$id)))
     ),
 
     # Icon and title

@@ -647,7 +647,6 @@ complete_assignment <- function(assignment_id, notes = NULL, verified_by = NULL)
   ", params = list(assignment_id))
 
   if (nrow(assignment) == 0) {
-    # Assignment not found or already completed - idempotent
     return(list(success = FALSE, reason = "not_pending"))
   }
 

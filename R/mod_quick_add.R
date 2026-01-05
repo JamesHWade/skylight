@@ -581,40 +581,23 @@ weekly_options_ui <- function(ns, date) {
   }
 
   htmltools::div(
+    class = "weekly-day-picker",
     htmltools::tags$label(class = "form-label small text-muted", "On these days:"),
-    htmltools::div(
-      class = "btn-group d-flex flex-wrap",
-      role = "group",
-      purrr::map(
-        list(
-          list(value = "sunday", label = "S"),
-          list(value = "monday", label = "M"),
-          list(value = "tuesday", label = "T"),
-          list(value = "wednesday", label = "W"),
-          list(value = "thursday", label = "T"),
-          list(value = "friday", label = "F"),
-          list(value = "saturday", label = "S")
-        ),
-        function(day) {
-          is_selected <- identical(day$value, default_day)
-          htmltools::tags$label(
-            class = paste(
-              "btn btn-outline-primary btn-sm day-btn",
-              if (is_selected) "active" else ""
-            ),
-            style = "min-width: 36px;",
-            htmltools::tags$input(
-              type = "checkbox",
-              name = ns("recurrence_days"),
-              value = day$value,
-              class = "btn-check",
-              autocomplete = "off",
-              checked = if (is_selected) "checked" else NULL
-            ),
-            day$label
-          )
-        }
-      )
+    shiny::checkboxGroupInput(
+      ns("recurrence_days"),
+      NULL,
+      choiceNames = list(
+        htmltools::span("S", class = "day-label"),
+        htmltools::span("M", class = "day-label"),
+        htmltools::span("T", class = "day-label"),
+        htmltools::span("W", class = "day-label"),
+        htmltools::span("T", class = "day-label"),
+        htmltools::span("F", class = "day-label"),
+        htmltools::span("S", class = "day-label")
+      ),
+      choiceValues = c("sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"),
+      selected = default_day,
+      inline = TRUE
     )
   )
 }

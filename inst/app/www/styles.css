@@ -3136,31 +3136,65 @@ html body .navbar .clock-widget * {
   padding: 0.25rem 0.5rem;
 }
 
-/* Day picker button group */
-.recurrence-details .btn-group {
-  gap: 2px;
+/* Weekly day picker - circular toggle buttons */
+.weekly-day-picker .shiny-input-container {
+  width: 100%;
 }
 
-.recurrence-details .day-btn {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  border-radius: 50% !important;
-  width: 32px;
-  height: 32px;
+.weekly-day-picker .shiny-options-group {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-start;
+}
+
+.weekly-day-picker .checkbox-inline {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.weekly-day-picker .checkbox-inline label {
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.weekly-day-picker .checkbox-inline input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.weekly-day-picker .checkbox-inline .day-label {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--bs-primary);
+  color: var(--bs-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background-color: transparent;
 }
 
-.recurrence-details .day-btn.active {
+/* Checked state - using :has() for modern browsers */
+.weekly-day-picker .checkbox-inline label:has(input:checked) .day-label {
   background-color: var(--bs-primary);
   color: white;
 }
 
-/* Hide the actual checkbox inside button */
-.recurrence-details .btn-check {
-  position: absolute;
-  clip: rect(0, 0, 0, 0);
+/* Fallback: style via sibling selector (Shiny structure: label > input + span) */
+.weekly-day-picker .checkbox-inline input[type="checkbox"]:checked ~ .day-label {
+  background-color: var(--bs-primary);
+  color: white;
+}
+
+.weekly-day-picker .checkbox-inline .day-label:hover {
+  background-color: color-mix(in srgb, var(--bs-primary) 20%, transparent);
 }
 
 /* Radio buttons inline styling */

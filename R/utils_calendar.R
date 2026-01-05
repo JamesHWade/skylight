@@ -295,6 +295,8 @@ cache_calendars <- function(calendars) {
 #' @param description Character. Optional event description.
 #' @param location Character. Optional event location.
 #' @param all_day Logical. Force all-day event. If NULL, determined by `start` class.
+#' @param recurrence Character vector. Optional RRULE strings for recurring events.
+#'   Use `recurrence_to_rrule()` to generate from a recurrence rule.
 #'
 #' @return A list with `success` (logical), `event` (created event data), and
 #'   `error` (error message if failed).
@@ -316,6 +318,13 @@ cache_calendars <- function(calendars) {
 #'     start = Sys.Date() + 7,
 #'     end = Sys.Date() + 14
 #'   )
+#'
+#'   # Create a recurring event (every Monday and Wednesday)
+#'   result <- create_event(
+#'     title = "Team Standup",
+#'     start = Sys.time(),
+#'     recurrence = c("RRULE:FREQ=WEEKLY;BYDAY=MO,WE")
+#'   )
 #' }
 create_event <- function(
     title,
@@ -324,7 +333,8 @@ create_event <- function(
     calendar_id = "primary",
     description = NULL,
     location = NULL,
-    all_day = NULL
+    all_day = NULL,
+    recurrence = NULL
 ) {
   token <- get_token()
   if (is.null(token)) {
@@ -374,6 +384,9 @@ create_event <- function(
   }
   if (!is.null(location) && nzchar(location)) {
     event_body$location <- location
+  }
+  if (!is.null(recurrence) && length(recurrence) > 0) {
+    event_body$recurrence <- as.list(recurrence)
   }
 
   # Make API request

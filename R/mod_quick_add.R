@@ -168,6 +168,162 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
               width = "100%"
             ),
 
+            # Recurrence options
+            htmltools::div(
+              class = "recurrence-section mt-3",
+              htmltools::tags$label(class = "form-label", "Repeat"),
+              htmltools::div(
+                class = "row g-2",
+                htmltools::div(
+                  class = "col-6",
+                  shiny::selectInput(
+                    ns("recurrence_type"),
+                    NULL,
+                    choices = c(
+                      "Does not repeat" = "once",
+                      "Daily" = "daily",
+                      "Weekly" = "weekly",
+                      "Monthly" = "monthly"
+                    ),
+                    selected = "once"
+                  )
+                ),
+                htmltools::div(
+                  class = "col-6",
+                  shiny::conditionalPanel(
+                    condition = sprintf("input['%s'] != 'once'", ns("recurrence_type")),
+                    ns = ns,
+                    shiny::numericInput(
+                      ns("recurrence_interval"),
+                      NULL,
+                      value = 1,
+                      min = 1,
+                      max = 99
+                    )
+                  )
+                )
+              ),
+
+              # Daily options: weekdays only
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] == 'daily'", ns("recurrence_type")),
+                ns = ns,
+                htmltools::div(
+                  class = "mt-2",
+                  shiny::checkboxInput(
+                    ns("weekdays_only"),
+                    "Weekdays only (Mon-Fri)",
+                    value = FALSE
+                  )
+                )
+              ),
+
+              # Weekly options: day picker
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] == 'weekly'", ns("recurrence_type")),
+                ns = ns,
+                htmltools::div(
+                  class = "mt-2",
+                  htmltools::tags$label(class = "form-label small", "On these days:"),
+                  shiny::checkboxGroupInput(
+                    ns("recurrence_days"),
+                    NULL,
+                    choices = c(
+                      "Mon" = "monday", "Tue" = "tuesday", "Wed" = "wednesday",
+                      "Thu" = "thursday", "Fri" = "friday", "Sat" = "saturday",
+                      "Sun" = "sunday"
+                    ),
+                    selected = NULL,
+                    inline = TRUE
+                  )
+                )
+              ),
+
+              # Monthly options
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] == 'monthly'", ns("recurrence_type")),
+                ns = ns,
+                htmltools::div(
+                  class = "mt-2",
+                  shiny::radioButtons(
+                    ns("monthly_type"),
+                    NULL,
+                    choices = c(
+                      "Day of month" = "day_of_month",
+                      "Specific weekday" = "nth_weekday"
+                    ),
+                    selected = "day_of_month",
+                    inline = TRUE
+                  ),
+                  # Day of month option
+                  shiny::conditionalPanel(
+                    condition = sprintf("input['%s'] == 'day_of_month'", ns("monthly_type")),
+                    ns = ns,
+                    htmltools::div(
+                      class = "d-flex align-items-center gap-2 mt-2",
+                      htmltools::span("On day"),
+                      shiny::numericInput(ns("month_day"), NULL, value = 1, min = 1, max = 31, width = "80px"),
+                      htmltools::span("of the month")
+                    )
+                  ),
+                  # Nth weekday option
+                  shiny::conditionalPanel(
+                    condition = sprintf("input['%s'] == 'nth_weekday'", ns("monthly_type")),
+                    ns = ns,
+                    htmltools::div(
+                      class = "d-flex align-items-center gap-2 mt-2 flex-wrap",
+                      htmltools::span("On the"),
+                      shiny::selectInput(
+                        ns("week_num"), NULL,
+                        choices = c("1st" = "1", "2nd" = "2", "3rd" = "3", "4th" = "4", "Last" = "-1"),
+                        width = "80px"
+                      ),
+                      shiny::selectInput(
+                        ns("weekday_name"), NULL,
+                        choices = c(
+                          "Monday" = "monday", "Tuesday" = "tuesday", "Wednesday" = "wednesday",
+                          "Thursday" = "thursday", "Friday" = "friday", "Saturday" = "saturday",
+                          "Sunday" = "sunday"
+                        ),
+                        width = "120px"
+                      )
+                    )
+                  )
+                )
+              ),
+
+              # End condition (when repeating)
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] != 'once'", ns("recurrence_type")),
+                ns = ns,
+                htmltools::div(
+                  class = "mt-3",
+                  htmltools::tags$label(class = "form-label small", "Ends"),
+                  shiny::radioButtons(
+                    ns("end_type"),
+                    NULL,
+                    choices = c("Never" = "never", "After" = "after", "On date" = "by_date"),
+                    selected = "never",
+                    inline = TRUE
+                  ),
+                  shiny::conditionalPanel(
+                    condition = sprintf("input['%s'] == 'after'", ns("end_type")),
+                    ns = ns,
+                    htmltools::div(
+                      class = "d-flex align-items-center gap-2",
+                      shiny::numericInput(ns("end_count"), NULL, value = 10, min = 1, max = 999, width = "80px"),
+                      htmltools::span("occurrences")
+                    )
+                  ),
+                  shiny::conditionalPanel(
+                    condition = sprintf("input['%s'] == 'by_date'", ns("end_type")),
+                    ns = ns,
+                    shiny::dateInput(ns("end_date"), NULL, value = Sys.Date() + 90)
+                  )
+                )
+              )
+            ),
+
             # Description (optional, collapsed by default)
             htmltools::div(
               class = "mt-2",
@@ -280,6 +436,45 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         all_day <- FALSE
       }
 
+      # Build recurrence rule if not a one-time event
+      recurrence_rrule <- NULL
+      recurrence_type <- input$recurrence_type
+
+      if (!is.null(recurrence_type) && recurrence_type != "once") {
+        # Build the recurrence rule parameters
+        rule_params <- list(
+          type = recurrence_type,
+          interval = as.integer(input$recurrence_interval %||% 1),
+          end_type = input$end_type %||% "never",
+          start_date = date
+        )
+
+        # Add end conditions
+        if (rule_params$end_type == "after") {
+          rule_params$end_count <- as.integer(input$end_count %||% 10)
+        } else if (rule_params$end_type == "by_date") {
+          rule_params$end_date <- input$end_date
+        }
+
+        # Type-specific options
+        if (recurrence_type == "daily") {
+          rule_params$by_weekday <- isTRUE(input$weekdays_only)
+        } else if (recurrence_type == "weekly") {
+          rule_params$by_days <- input$recurrence_days
+        } else if (recurrence_type == "monthly") {
+          if (input$monthly_type == "day_of_month") {
+            rule_params$by_month_day <- as.integer(input$month_day %||% 1)
+          } else {
+            rule_params$by_week_num <- as.integer(input$week_num %||% 1)
+            rule_params$by_weekday_name <- input$weekday_name %||% "monday"
+          }
+        }
+
+        # Create the rule and convert to RRULE
+        recurrence_rule <- do.call(create_recurrence_rule, rule_params)
+        recurrence_rrule <- recurrence_to_rrule(recurrence_rule)
+      }
+
       # Create the event
       result <- create_event(
         title = title,
@@ -288,7 +483,8 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         calendar_id = input$calendar,
         description = if (nchar(trimws(input$description)) > 0) input$description else NULL,
         location = if (nchar(trimws(input$location)) > 0) input$location else NULL,
-        all_day = all_day
+        all_day = all_day,
+        recurrence = if (!is.null(recurrence_rrule)) recurrence_rrule else NULL
       )
 
       if (result$success) {
@@ -303,11 +499,22 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         }
 
         shiny::removeModal()
-        shiny::showNotification(
-          paste("Created:", title),
-          type = "message",
-          duration = 3
-        )
+
+        # Show confirmation with recurrence description if applicable
+        if (!is.null(recurrence_rule)) {
+          desc <- format_recurrence(recurrence_rule)
+          shiny::showNotification(
+            paste("Created:", title, "-", desc),
+            type = "message",
+            duration = 4
+          )
+        } else {
+          shiny::showNotification(
+            paste("Created:", title),
+            type = "message",
+            duration = 3
+          )
+        }
         # Trigger calendar refresh
         refresh_trigger(refresh_trigger() + 1)
       } else {

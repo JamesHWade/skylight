@@ -393,3 +393,87 @@ format_recurrence <- function(rule) {
 
   desc
 }
+
+#' Convert Recurrence Rule to RRULE
+#'
+#' Converts a recurrence rule JSON to iCalendar RRULE format for Google Calendar.
+#'
+#' @param rule Parsed recurrence rule (list) or JSON string.
+#'
+#' @return A character string in RRULE format, or NULL if invalid.
+#'
+#' @export
+recurrence_to_rrule <- function(rule) {
+  # Parse if JSON string
+  if (is.character(rule)) {
+    rule <- parse_recurrence_rule(rule)
+  }
+
+  if (is.null(rule)) return(NULL)
+
+  type <- rule$type %||% "daily"
+  interval <- rule$interval %||% 1
+
+  # Map to RRULE FREQ
+  freq <- switch(type,
+    "daily" = "DAILY",
+    "weekly" = "WEEKLY",
+    "monthly" = "MONTHLY",
+    NULL
+  )
+
+  if (is.null(freq)) return(NULL)
+
+  # Build RRULE parts
+  parts <- paste0("FREQ=", freq)
+
+  # Add interval if not 1
+
+  if (interval > 1) {
+    parts <- paste0(parts, ";INTERVAL=", interval)
+  }
+
+  # Type-specific options
+  if (type == "daily" && isTRUE(rule$weekdays_only)) {
+    # Weekdays only = BYDAY=MO,TU,WE,TH,FR
+    parts <- paste0(parts, ";BYDAY=MO,TU,WE,TH,FR")
+  } else if (type == "weekly" && !is.null(rule$by_days) && length(rule$by_days) > 0) {
+    # Convert day names to RRULE format (MO, TU, WE, etc.)
+    day_map <- c(
+      "monday" = "MO", "tuesday" = "TU", "wednesday" = "WE",
+      "thursday" = "TH", "friday" = "FR", "saturday" = "SA", "sunday" = "SU"
+    )
+    rrule_days <- sapply(tolower(rule$by_days), function(d) day_map[d])
+    rrule_days <- rrule_days[!is.na(rrule_days)]
+    if (length(rrule_days) > 0) {
+      parts <- paste0(parts, ";BYDAY=", paste(rrule_days, collapse = ","))
+    }
+  } else if (type == "monthly") {
+    if (!is.null(rule$by_month_day)) {
+      # Day of month (e.g., 15th)
+      parts <- paste0(parts, ";BYMONTHDAY=", rule$by_month_day)
+    } else if (!is.null(rule$by_week_num) && !is.null(rule$by_weekday_name)) {
+      # Nth weekday (e.g., 2nd Tuesday = 2TU, last Friday = -1FR)
+      day_map <- c(
+        "monday" = "MO", "tuesday" = "TU", "wednesday" = "WE",
+        "thursday" = "TH", "friday" = "FR", "saturday" = "SA", "sunday" = "SU"
+      )
+      day_code <- day_map[tolower(rule$by_weekday_name)]
+      if (!is.na(day_code)) {
+        parts <- paste0(parts, ";BYDAY=", rule$by_week_num, day_code)
+      }
+    }
+  }
+
+  # End conditions
+  end_type <- rule$end_type %||% "never"
+  if (end_type == "after" && !is.null(rule$end_count)) {
+    parts <- paste0(parts, ";COUNT=", rule$end_count)
+  } else if (end_type == "by_date" && !is.null(rule$end_date)) {
+    # UNTIL format: YYYYMMDD or YYYYMMDDTHHMMSSZ
+    until_date <- format(as.Date(rule$end_date), "%Y%m%d")
+    parts <- paste0(parts, ";UNTIL=", until_date)
+  }
+
+  paste0("RRULE:", parts)
+}

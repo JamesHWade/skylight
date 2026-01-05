@@ -100,7 +100,7 @@ db_init_chores <- function(con) {
   DBI::dbExecute(con, "
     CREATE TABLE IF NOT EXISTS chore_completions (
       id INTEGER PRIMARY KEY DEFAULT nextval('chore_completions_id_seq'),
-      assignment_id INTEGER,
+      assignment_id INTEGER UNIQUE,
       chore_id INTEGER NOT NULL,
       member_id INTEGER NOT NULL,
       points_earned INTEGER NOT NULL,
@@ -110,6 +110,27 @@ db_init_chores <- function(con) {
       streak_bonus INTEGER DEFAULT 0
     )
   ")
+
+  # Migration: Clean up duplicate completions and add UNIQUE constraint
+  tryCatch({
+    # First, remove duplicate completion records (keep the first one for each assignment)
+    DBI::dbExecute(con, "
+      DELETE FROM chore_completions
+      WHERE id NOT IN (
+        SELECT MIN(id)
+        FROM chore_completions
+        WHERE assignment_id IS NOT NULL
+        GROUP BY assignment_id
+      )
+      AND assignment_id IS NOT NULL
+    ")
+    # Then create the unique index
+    DBI::dbExecute(con, "CREATE UNIQUE INDEX IF NOT EXISTS idx_completions_assignment_unique ON chore_completions(assignment_id)")
+  }, error = function(e) {
+    if (!grepl("already exists|duplicate", conditionMessage(e), ignore.case = TRUE)) {
+      warning("Migration failed (completions unique index): ", conditionMessage(e))
+    }
+  })
 
   # Chore rotations table (optional rotation config)
   DBI::dbExecute(con, "
@@ -695,11 +716,12 @@ complete_assignment <- function(assignment_id, notes = NULL, verified_by = NULL)
     return(list(success = FALSE, reason = "already_completed"))
   }
 
-  # Record completion
+  # Record completion (ON CONFLICT prevents duplicates from rapid clicks)
   db_execute("
     INSERT INTO chore_completions
       (assignment_id, chore_id, member_id, points_earned, completion_notes, verified_by, streak_bonus)
     VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (assignment_id) DO NOTHING
   ", params = list(
     assignment_id,
     assignment$chore_id[1],
@@ -710,8 +732,8 @@ complete_assignment <- function(assignment_id, notes = NULL, verified_by = NULL)
     streak_bonus
   ))
 
-  result <- db_query("SELECT MAX(id) as id FROM chore_completions")
-  list(success = TRUE, completion_id = result$id[1])
+  result <- db_query("SELECT id FROM chore_completions WHERE assignment_id = ?", params = list(assignment_id))
+  list(success = TRUE, completion_id = if (nrow(result) > 0) result$id[1] else NA_integer_)
 }
 
 #' Skip Assignment

@@ -700,7 +700,7 @@ render_by_chore <- function(assignments, ns) {
               shiny::tags$input(
                 type = "checkbox",
                 class = "form-check-input chore-checkbox",
-                id = ns(paste0("complete_", a$id)),
+                id = ns(paste0("complete_chore_", a$id)),
                 checked = if (a$status == "completed") "checked" else NULL,
                 onclick = sprintf("Shiny.setInputValue('%s', Math.random())", ns(paste0("toggle_click_", a$id)))
               ),
@@ -781,7 +781,7 @@ chore_card <- function(assignment, ns, show_member = TRUE) {
     shiny::tags$input(
       type = "checkbox",
       class = "form-check-input chore-checkbox",
-      id = ns(paste0("complete_", assignment$id)),
+      id = ns(paste0("complete_person_", assignment$id)),
       checked = if (is_completed) "checked" else NULL,
       onclick = sprintf("Shiny.setInputValue('%s', Math.random())", ns(paste0("toggle_click_", assignment$id)))
     ),

@@ -958,20 +958,41 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
           )
         )
       ),
-      # Weekly options
+      # Weekly options - circular day picker
       shiny::conditionalPanel(
         condition = sprintf("input['%s'] == 'weekly'", ns("recurrence_type")),
         ns = ns,
-        htmltools::div(
-          class = "mt-2",
-          htmltools::tags$label(class = "form-label small", "On these days:"),
-          shiny::checkboxGroupInput(
-            ns("recurrence_days"),
-            NULL,
-            choices = day_choices,
-            selected = NULL,
-            inline = TRUE
-          ) |> htmltools::tagAppendAttributes(class = "day-picker")
+        htmltools::tagList(
+          htmltools::div(
+            class = "mt-2 weekly-day-picker",
+            htmltools::tags$label(class = "form-label small", "On these days:"),
+            shiny::checkboxGroupInput(
+              ns("recurrence_days"),
+              NULL,
+              choiceNames = list(
+                htmltools::span("S", class = "day-label"),
+                htmltools::span("M", class = "day-label"),
+                htmltools::span("T", class = "day-label"),
+                htmltools::span("W", class = "day-label"),
+                htmltools::span("T", class = "day-label"),
+                htmltools::span("F", class = "day-label"),
+                htmltools::span("S", class = "day-label")
+              ),
+              choiceValues = c("sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"),
+              selected = NULL,
+              inline = TRUE
+            )
+          ),
+          htmltools::tags$script(htmltools::HTML(sprintf("
+            $(document).on('change', '#%s input[type=checkbox]', function() {
+              $(this).closest('.checkbox-inline, .form-check').toggleClass('checked', this.checked);
+            });
+            $(function() {
+              $('#%s input[type=checkbox]:checked').each(function() {
+                $(this).closest('.checkbox-inline, .form-check').addClass('checked');
+              });
+            });
+          ", ns("recurrence_days"), ns("recurrence_days"))))
         )
       ),
       # Monthly options

@@ -30,14 +30,14 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
 
     # Track the date for the new event
     selected_date_for_event <- shiny::reactiveVal(NULL)
-    generated_event_icon <- shiny::reactiveVal(NULL)  # For AI-generated icon
+    generated_event_icon <- shiny::reactiveVal(NULL)
 
     # Listen for quick add trigger from JavaScript
     shiny::observeEvent(input$quick_add_trigger, {
       trigger_data <- input$quick_add_trigger
       if (!is.null(trigger_data) && !is.null(trigger_data$date)) {
         selected_date_for_event(as.Date(trigger_data$date))
-        generated_event_icon(NULL)  # Reset icon
+        generated_event_icon(NULL)
         show_quick_add_modal()
       }
     }, ignoreInit = TRUE)
@@ -51,7 +51,6 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
       cal_list <- tryCatch(calendars(), error = function(e) NULL)
       calendar_choices <- if (!is.null(cal_list) && nrow(cal_list) > 0) {
         choices <- setNames(cal_list$id, cal_list$name)
-        # Put primary calendar first
         primary_idx <- which(cal_list$primary)
         if (length(primary_idx) > 0) {
           choices <- c(choices[primary_idx], choices[-primary_idx])
@@ -72,111 +71,103 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
               format(date, "%A, %B %d")
             )
           ),
-          size = "l",
+          size = "m",
           easyClose = TRUE,
           footer = htmltools::div(
-            class = "d-flex justify-content-end gap-2",
-            shiny::modalButton("Cancel"),
-            shiny::actionButton(
-              ns("create_event"),
-              "Create Event",
-              class = "btn-primary",
-              icon = bsicons::bs_icon("plus-circle")
+            class = "d-flex justify-content-between align-items-center w-100",
+            # Recurrence preview on the left
+            shiny::uiOutput(ns("recurrence_preview")),
+            # Buttons on the right
+            htmltools::div(
+              class = "d-flex gap-2",
+              shiny::modalButton("Cancel"),
+              shiny::actionButton(
+                ns("create_event"),
+                "Create Event",
+                class = "btn-primary",
+                icon = bsicons::bs_icon("plus-circle")
+              )
             )
           ),
 
-          # Form content (scrollable for smaller screens)
+          # Form content
           htmltools::div(
             class = "quick-add-form",
-            style = "max-height: 70vh; overflow-y: auto;",
 
-            # Event title with icon generation
+            # Event title
             htmltools::div(
-              class = "d-flex gap-2 align-items-end mb-3",
+              class = "mb-3",
+              shiny::textInput(
+                ns("event_title"),
+                NULL,
+                placeholder = "Add title",
+                width = "100%"
+              ) |> htmltools::tagAppendAttributes(
+                class = "form-control-lg",
+                style = "font-size: 1.25rem; font-weight: 500;"
+              )
+            ),
+
+            # Time section
+            htmltools::div(
+              class = "mb-3",
               htmltools::div(
-                class = "flex-grow-1",
-                shiny::textInput(
-                  ns("event_title"),
-                  "Event Title",
-                  placeholder = "Enter event title...",
-                  width = "100%"
+                class = "d-flex align-items-center gap-2 mb-2",
+                bsicons::bs_icon("clock", class = "text-muted"),
+                shiny::checkboxInput(
+                  ns("all_day"),
+                  "All day",
+                  value = FALSE,
+                  width = "auto"
                 )
               ),
-              htmltools::div(
-                class = "icon-generate-section",
-                shiny::actionButton(
-                  ns("generate_event_icon"),
-                  htmltools::tagList(bsicons::bs_icon("stars")),
-                  class = "btn-outline-primary btn-sm",
-                  disabled = if (gemini_available()) NULL else "disabled",
-                  title = if (gemini_available()) "Generate AI icon" else "GEMINI_API_KEY not configured"
-                ),
-                shiny::uiOutput(ns("event_icon_preview"))
-              )
-            ),
-
-            # All day toggle and time inputs
-            htmltools::div(
-              class = "d-flex align-items-center gap-3 mb-3",
-              shiny::checkboxInput(
-                ns("all_day"),
-                "All Day",
-                value = FALSE,
-                width = "auto"
-              )
-            ),
-
-            # Time inputs (shown when not all-day)
-            shiny::conditionalPanel(
-              condition = sprintf("!input['%s']", ns("all_day")),
-              ns = ns,
-              htmltools::div(
-                class = "row g-3 mb-3",
-                htmltools::div(
-                  class = "col-6",
-                  shiny::textInput(
-                    ns("start_time"),
-                    "Start Time",
-                    value = "09:00",
-                    width = "100%"
-                  )
-                ),
-                htmltools::div(
-                  class = "col-6",
-                  shiny::textInput(
-                    ns("end_time"),
-                    "End Time",
-                    value = "10:00",
-                    width = "100%"
-                  )
-                )
-              )
+              shiny::uiOutput(ns("time_inputs"))
             ),
 
             # Calendar selector
-            shiny::selectInput(
-              ns("calendar"),
-              "Calendar",
-              choices = calendar_choices,
-              width = "100%"
-            ),
-
-            # Location (optional)
-            shiny::textInput(
-              ns("location"),
-              "Location (optional)",
-              placeholder = "Add location...",
-              width = "100%"
-            ),
-
-            # Recurrence options
             htmltools::div(
-              class = "recurrence-section mt-3",
-              htmltools::tags$label(class = "form-label", "Repeat"),
+              class = "mb-3",
               htmltools::div(
-                class = "row g-2",
+                class = "d-flex align-items-center gap-2",
+                bsicons::bs_icon("calendar3", class = "text-muted"),
                 htmltools::div(
-                  class = "col-6",
+                  class = "flex-grow-1",
+                  shiny::selectInput(
+                    ns("calendar"),
+                    NULL,
+                    choices = calendar_choices,
+                    width = "100%"
+                  )
+                )
+              )
+            ),
+
+            # Location
+            htmltools::div(
+              class = "mb-3",
+              htmltools::div(
+                class = "d-flex align-items-center gap-2",
+                bsicons::bs_icon("geo-alt", class = "text-muted"),
+                htmltools::div(
+                  class = "flex-grow-1",
+                  shiny::textInput(
+                    ns("location"),
+                    NULL,
+                    placeholder = "Add location",
+                    width = "100%"
+                  )
+                )
+              )
+            ),
+
+            # Recurrence section
+            htmltools::div(
+              class = "mb-3",
+              htmltools::div(
+                class = "d-flex align-items-start gap-2",
+                bsicons::bs_icon("arrow-repeat", class = "text-muted mt-2"),
+                htmltools::div(
+                  class = "flex-grow-1",
                   shiny::selectInput(
                     ns("recurrence_type"),
                     NULL,
@@ -186,150 +177,30 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
                       "Weekly" = "weekly",
                       "Monthly" = "monthly"
                     ),
-                    selected = "once"
-                  )
-                ),
-                htmltools::div(
-                  class = "col-6",
-                  shiny::conditionalPanel(
-                    condition = sprintf("input.%s != 'once'", ns("recurrence_type")),
-                    shiny::numericInput(
-                      ns("recurrence_interval"),
-                      NULL,
-                      value = 1,
-                      min = 1,
-                      max = 99
-                    )
-                  )
-                )
-              ),
-
-              # Daily options: weekdays only
-              shiny::conditionalPanel(
-                condition = sprintf("input.%s == 'daily'", ns("recurrence_type")),
-                htmltools::div(
-                  class = "mt-2",
-                  shiny::checkboxInput(
-                    ns("weekdays_only"),
-                    "Weekdays only (Mon-Fri)",
-                    value = FALSE
-                  )
-                )
-              ),
-
-              # Weekly options: day picker
-              shiny::conditionalPanel(
-                condition = sprintf("input.%s == 'weekly'", ns("recurrence_type")),
-                htmltools::div(
-                  class = "mt-2",
-                  htmltools::tags$label(class = "form-label small", "On these days:"),
-                  shiny::checkboxGroupInput(
-                    ns("recurrence_days"),
-                    NULL,
-                    choices = c(
-                      "Mon" = "monday", "Tue" = "tuesday", "Wed" = "wednesday",
-                      "Thu" = "thursday", "Fri" = "friday", "Sat" = "saturday",
-                      "Sun" = "sunday"
-                    ),
-                    selected = NULL,
-                    inline = TRUE
-                  )
-                )
-              ),
-
-              # Monthly options
-              shiny::conditionalPanel(
-                condition = sprintf("input.%s == 'monthly'", ns("recurrence_type")),
-                htmltools::div(
-                  class = "mt-2",
-                  shiny::radioButtons(
-                    ns("monthly_type"),
-                    NULL,
-                    choices = c(
-                      "Day of month" = "day_of_month",
-                      "Specific weekday" = "nth_weekday"
-                    ),
-                    selected = "day_of_month",
-                    inline = TRUE
+                    selected = "once",
+                    width = "100%"
                   ),
-                  # Day of month option
-                  shiny::conditionalPanel(
-                    condition = sprintf("input.%s == 'day_of_month'", ns("monthly_type")),
-                    htmltools::div(
-                      class = "d-flex align-items-center gap-2 mt-2",
-                      htmltools::span("On day"),
-                      shiny::numericInput(ns("month_day"), NULL, value = 1, min = 1, max = 31, width = "80px"),
-                      htmltools::span("of the month")
-                    )
-                  ),
-                  # Nth weekday option
-                  shiny::conditionalPanel(
-                    condition = sprintf("input.%s == 'nth_weekday'", ns("monthly_type")),
-                    htmltools::div(
-                      class = "d-flex align-items-center gap-2 mt-2 flex-wrap",
-                      htmltools::span("On the"),
-                      shiny::selectInput(
-                        ns("week_num"), NULL,
-                        choices = c("1st" = "1", "2nd" = "2", "3rd" = "3", "4th" = "4", "Last" = "-1"),
-                        width = "80px"
-                      ),
-                      shiny::selectInput(
-                        ns("weekday_name"), NULL,
-                        choices = c(
-                          "Monday" = "monday", "Tuesday" = "tuesday", "Wednesday" = "wednesday",
-                          "Thursday" = "thursday", "Friday" = "friday", "Saturday" = "saturday",
-                          "Sunday" = "sunday"
-                        ),
-                        width = "120px"
-                      )
-                    )
-                  )
-                )
-              ),
-
-              # End condition (when repeating)
-              shiny::conditionalPanel(
-                condition = sprintf("input.%s != 'once'", ns("recurrence_type")),
-                htmltools::div(
-                  class = "mt-3",
-                  htmltools::tags$label(class = "form-label small", "Ends"),
-                  shiny::radioButtons(
-                    ns("end_type"),
-                    NULL,
-                    choices = c("Never" = "never", "After" = "after", "On date" = "by_date"),
-                    selected = "never",
-                    inline = TRUE
-                  ),
-                  shiny::conditionalPanel(
-                    condition = sprintf("input.%s == 'after'", ns("end_type")),
-                    htmltools::div(
-                      class = "d-flex align-items-center gap-2",
-                      shiny::numericInput(ns("end_count"), NULL, value = 10, min = 1, max = 999, width = "80px"),
-                      htmltools::span("occurrences")
-                    )
-                  ),
-                  shiny::conditionalPanel(
-                    condition = sprintf("input.%s == 'by_date'", ns("end_type")),
-                    shiny::dateInput(ns("end_date"), NULL, value = Sys.Date() + 90)
-                  )
+                  # Dynamic recurrence options
+                  shiny::uiOutput(ns("recurrence_options"))
                 )
               )
             ),
 
-            # Description (optional, collapsed by default)
+            # Description (collapsible)
             htmltools::div(
-              class = "mt-2",
-              htmltools::tags$details(
-                htmltools::tags$summary(
-                  class = "text-muted small cursor-pointer",
-                  "Add description..."
-                ),
-                shiny::textAreaInput(
-                  ns("description"),
-                  label = NULL,
-                  placeholder = "Event description...",
-                  rows = 3,
-                  width = "100%"
+              class = "mb-2",
+              htmltools::div(
+                class = "d-flex align-items-start gap-2",
+                bsicons::bs_icon("text-left", class = "text-muted mt-2"),
+                htmltools::div(
+                  class = "flex-grow-1",
+                  shiny::textAreaInput(
+                    ns("description"),
+                    NULL,
+                    placeholder = "Add description",
+                    rows = 2,
+                    width = "100%"
+                  )
                 )
               )
             )
@@ -337,6 +208,184 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         )
       )
     }
+
+    # Dynamic time inputs
+    output$time_inputs <- shiny::renderUI({
+      if (isTRUE(input$all_day)) {
+        return(NULL)
+      }
+
+      htmltools::div(
+        class = "row g-2 ms-4",
+        htmltools::div(
+          class = "col-6",
+          shiny::textInput(
+            ns("start_time"),
+            NULL,
+            value = "09:00",
+            placeholder = "Start time",
+            width = "100%"
+          )
+        ),
+        htmltools::div(
+          class = "col-6",
+          shiny::textInput(
+            ns("end_time"),
+            NULL,
+            value = "10:00",
+            placeholder = "End time",
+            width = "100%"
+          )
+        )
+      )
+    })
+
+    # Dynamic recurrence options based on type
+    output$recurrence_options <- shiny::renderUI({
+      req(input$recurrence_type)
+      rec_type <- input$recurrence_type
+
+      if (rec_type == "once") {
+        return(NULL)
+      }
+
+      # Build the options UI based on recurrence type
+      options_ui <- switch(
+        rec_type,
+        "daily" = daily_options_ui(ns),
+        "weekly" = weekly_options_ui(ns, selected_date_for_event()),
+        "monthly" = monthly_options_ui(ns, selected_date_for_event()),
+        NULL
+      )
+
+      htmltools::div(
+        class = "recurrence-details mt-2 p-2 bg-light rounded",
+
+        # Interval row
+        htmltools::div(
+          class = "d-flex align-items-center gap-2 mb-2",
+          htmltools::span("Every", class = "text-muted small"),
+          shiny::numericInput(
+            ns("recurrence_interval"),
+            NULL,
+            value = 1,
+            min = 1,
+            max = 99,
+            width = "70px"
+          ),
+          htmltools::span(
+            class = "text-muted small",
+            switch(rec_type,
+              "daily" = "day(s)",
+              "weekly" = "week(s)",
+              "monthly" = "month(s)"
+            )
+          )
+        ),
+
+        # Type-specific options
+        options_ui,
+
+        # End condition
+        htmltools::div(
+          class = "mt-3 pt-2 border-top",
+          htmltools::div(
+            class = "d-flex align-items-center gap-2 flex-wrap",
+            htmltools::span("Ends:", class = "text-muted small"),
+            shiny::radioButtons(
+              ns("end_type"),
+              NULL,
+              choices = c("Never" = "never", "After" = "after", "On" = "by_date"),
+              selected = "never",
+              inline = TRUE
+            )
+          ),
+          shiny::uiOutput(ns("end_condition_details"))
+        )
+      )
+    })
+
+    # End condition details
+    output$end_condition_details <- shiny::renderUI({
+      req(input$end_type)
+
+      switch(
+        input$end_type,
+        "after" = htmltools::div(
+          class = "d-flex align-items-center gap-2 mt-2",
+          shiny::numericInput(
+            ns("end_count"),
+            NULL,
+            value = 10,
+            min = 1,
+            max = 999,
+            width = "80px"
+          ),
+          htmltools::span("occurrences", class = "text-muted small")
+        ),
+        "by_date" = htmltools::div(
+          class = "mt-2",
+          shiny::dateInput(
+            ns("end_date"),
+            NULL,
+            value = Sys.Date() + 90,
+            width = "150px"
+          )
+        ),
+        NULL
+      )
+    })
+
+    # Recurrence preview in footer
+    output$recurrence_preview <- shiny::renderUI({
+      rec_type <- input$recurrence_type
+      if (is.null(rec_type) || rec_type == "once") {
+        return(htmltools::span())
+      }
+
+      # Build preview text
+      interval <- input$recurrence_interval %||% 1
+      preview <- switch(
+        rec_type,
+        "daily" = {
+          if (isTRUE(input$weekdays_only)) {
+            "Every weekday"
+          } else if (interval == 1) {
+            "Daily"
+          } else {
+            paste("Every", interval, "days")
+          }
+        },
+        "weekly" = {
+          days <- input$recurrence_days
+          if (length(days) > 0) {
+            day_abbr <- c(
+              "monday" = "Mon", "tuesday" = "Tue", "wednesday" = "Wed",
+              "thursday" = "Thu", "friday" = "Fri", "saturday" = "Sat",
+              "sunday" = "Sun"
+            )
+            day_str <- paste(day_abbr[days], collapse = ", ")
+            if (interval == 1) {
+              paste("Weekly on", day_str)
+            } else {
+              paste("Every", interval, "weeks on", day_str)
+            }
+          } else {
+            if (interval == 1) "Weekly" else paste("Every", interval, "weeks")
+          }
+        },
+        "monthly" = {
+          if (interval == 1) "Monthly" else paste("Every", interval, "months")
+        },
+        ""
+      )
+
+      htmltools::span(
+        class = "text-muted small",
+        bsicons::bs_icon("arrow-repeat", class = "me-1"),
+        preview
+      )
+    })
 
     # Generate AI icon for event
     shiny::observeEvent(input$generate_event_icon, {
@@ -393,10 +442,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
 
       # Validate title
       if (is.null(title) || nchar(title) == 0) {
-        shiny::showNotification(
-          "Please enter an event title",
-          type = "warning"
-        )
+        shiny::showNotification("Please enter an event title", type = "warning")
         return()
       }
 
@@ -406,7 +452,6 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         end <- date + 1
         all_day <- TRUE
       } else {
-        # Parse time inputs
         start_time <- tryCatch({
           as.POSIXct(paste(date, input$start_time), format = "%Y-%m-%d %H:%M")
         }, error = function(e) NULL)
@@ -416,10 +461,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         }, error = function(e) NULL)
 
         if (is.null(start_time) || is.null(end_time)) {
-          shiny::showNotification(
-            "Invalid time format. Use HH:MM (e.g., 09:00)",
-            type = "warning"
-          )
+          shiny::showNotification("Invalid time format. Use HH:MM (e.g., 09:00)", type = "warning")
           return()
         }
 
@@ -430,10 +472,10 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
 
       # Build recurrence rule if not a one-time event
       recurrence_rrule <- NULL
+      recurrence_rule <- NULL
       recurrence_type <- input$recurrence_type
 
       if (!is.null(recurrence_type) && recurrence_type != "once") {
-        # Build the recurrence rule parameters
         rule_params <- list(
           type = recurrence_type,
           interval = as.integer(input$recurrence_interval %||% 1),
@@ -454,15 +496,15 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         } else if (recurrence_type == "weekly") {
           rule_params$by_days <- input$recurrence_days
         } else if (recurrence_type == "monthly") {
-          if (input$monthly_type == "day_of_month") {
-            rule_params$by_month_day <- as.integer(input$month_day %||% 1)
+          monthly_type <- input$monthly_type %||% "day_of_month"
+          if (monthly_type == "day_of_month") {
+            rule_params$by_month_day <- as.integer(input$month_day %||% lubridate::day(date))
           } else {
             rule_params$by_week_num <- as.integer(input$week_num %||% 1)
-            rule_params$by_weekday_name <- input$weekday_name %||% "monday"
+            rule_params$by_weekday_name <- input$weekday_name %||% tolower(weekdays(date))
           }
         }
 
-        # Create the rule and convert to RRULE
         recurrence_rule <- do.call(create_recurrence_rule, rule_params)
         recurrence_rrule <- recurrence_to_rrule(recurrence_rule)
       }
@@ -473,10 +515,10 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         start = start,
         end = end,
         calendar_id = input$calendar,
-        description = if (nchar(trimws(input$description)) > 0) input$description else NULL,
-        location = if (nchar(trimws(input$location)) > 0) input$location else NULL,
+        description = if (nchar(trimws(input$description %||% "")) > 0) input$description else NULL,
+        location = if (nchar(trimws(input$location %||% "")) > 0) input$location else NULL,
         all_day = all_day,
-        recurrence = if (!is.null(recurrence_rrule)) recurrence_rrule else NULL
+        recurrence = recurrence_rrule
       )
 
       if (result$success) {
@@ -485,14 +527,12 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
         if (!is.null(icon_data) && nchar(icon_data) > 0 && !is.null(result$event$id)) {
           tryCatch({
             save_event_icon(result$event$id, icon_data)
-          }, error = function(e) {
-            # Silent fail - icon saving is optional
-          })
+          }, error = function(e) NULL)
         }
 
         shiny::removeModal()
 
-        # Show confirmation with recurrence description if applicable
+        # Show confirmation with recurrence description
         if (!is.null(recurrence_rule)) {
           desc <- format_recurrence(recurrence_rule)
           shiny::showNotification(
@@ -501,13 +541,8 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
             duration = 4
           )
         } else {
-          shiny::showNotification(
-            paste("Created:", title),
-            type = "message",
-            duration = 3
-          )
+          shiny::showNotification(paste("Created:", title), type = "message", duration = 3)
         }
-        # Trigger calendar refresh
         refresh_trigger(refresh_trigger() + 1)
       } else {
         shiny::showNotification(
@@ -523,4 +558,105 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
       input$create_event
     })
   })
+}
+
+# Helper: Daily recurrence options UI
+daily_options_ui <- function(ns) {
+  htmltools::div(
+    shiny::checkboxInput(
+      ns("weekdays_only"),
+      "Weekdays only (Mon-Fri)",
+      value = FALSE
+    )
+  )
+}
+
+# Helper: Weekly recurrence options UI
+weekly_options_ui <- function(ns, date) {
+  # Pre-select the day of the week from the selected date
+  default_day <- if (!is.null(date)) {
+    tolower(weekdays(date))
+  } else {
+    NULL
+  }
+
+  htmltools::div(
+    htmltools::tags$label(class = "form-label small text-muted", "On these days:"),
+    htmltools::div(
+      class = "btn-group d-flex flex-wrap",
+      role = "group",
+      purrr::map(
+        list(
+          list(value = "sunday", label = "S"),
+          list(value = "monday", label = "M"),
+          list(value = "tuesday", label = "T"),
+          list(value = "wednesday", label = "W"),
+          list(value = "thursday", label = "T"),
+          list(value = "friday", label = "F"),
+          list(value = "saturday", label = "S")
+        ),
+        function(day) {
+          is_selected <- identical(day$value, default_day)
+          htmltools::tags$label(
+            class = paste(
+              "btn btn-outline-primary btn-sm day-btn",
+              if (is_selected) "active" else ""
+            ),
+            style = "min-width: 36px;",
+            htmltools::tags$input(
+              type = "checkbox",
+              name = ns("recurrence_days"),
+              value = day$value,
+              class = "btn-check",
+              autocomplete = "off",
+              checked = if (is_selected) "checked" else NULL
+            ),
+            day$label
+          )
+        }
+      )
+    )
+  )
+}
+
+# Helper: Monthly recurrence options UI
+monthly_options_ui <- function(ns, date) {
+  # Calculate default values from selected date
+  day_of_month <- if (!is.null(date)) lubridate::day(date) else 1
+  week_num <- if (!is.null(date)) ceiling(lubridate::day(date) / 7) else 1
+  weekday_name <- if (!is.null(date)) tolower(weekdays(date)) else "monday"
+
+  week_labels <- c("1" = "first", "2" = "second", "3" = "third", "4" = "fourth", "-1" = "last")
+
+  htmltools::div(
+    shiny::radioButtons(
+      ns("monthly_type"),
+      NULL,
+      choiceNames = list(
+        htmltools::span(paste("On day", day_of_month)),
+        htmltools::span(paste("On the", week_labels[as.character(week_num)], tools::toTitleCase(weekday_name)))
+      ),
+      choiceValues = c("day_of_month", "nth_weekday"),
+      selected = "day_of_month"
+    ),
+    # Hidden inputs to store computed values
+    htmltools::tags$input(
+      type = "hidden",
+      id = ns("month_day"),
+      name = ns("month_day"),
+      value = day_of_month
+    ),
+    htmltools::tags$input(
+      type = "hidden",
+      id = ns("week_num"),
+      name = ns("week_num"),
+      value = week_num
+    ),
+    htmltools::tags$input(
+      type = "hidden",
+      id = ns("weekday_name"),
+      name = ns("weekday_name"),
+      value = weekday_name
+    )
+  )
 }

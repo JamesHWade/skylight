@@ -3086,3 +3086,107 @@ html body .navbar .clock-widget,
 html body .navbar .clock-widget * {
   color: rgba(255, 255, 255, 0.95) !important;
 }
+
+/* ==========================================================================
+   Quick Add Modal - Recurrence UI
+   ========================================================================== */
+
+/* Clean up form inputs in modal */
+.quick-add-form .form-group {
+  margin-bottom: 0;
+}
+
+.quick-add-form .shiny-input-container {
+  margin-bottom: 0;
+}
+
+.quick-add-form .form-control:focus {
+  box-shadow: none;
+  border-color: var(--bs-primary);
+}
+
+/* Title input styling */
+.quick-add-form .form-control-lg input {
+  font-size: 1.25rem;
+  font-weight: 500;
+  border: none;
+  border-bottom: 2px solid var(--bs-border-color);
+  border-radius: 0;
+  padding-left: 0;
+}
+
+.quick-add-form .form-control-lg input:focus {
+  border-bottom-color: var(--bs-primary);
+}
+
+/* Icon alignment for form rows */
+.quick-add-form .bi {
+  width: 20px;
+  flex-shrink: 0;
+}
+
+/* Recurrence details panel */
+.recurrence-details {
+  font-size: 0.875rem;
+}
+
+.recurrence-details .form-control,
+.recurrence-details .form-select {
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Day picker button group */
+.recurrence-details .btn-group {
+  gap: 2px;
+}
+
+.recurrence-details .day-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 50% !important;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recurrence-details .day-btn.active {
+  background-color: var(--bs-primary);
+  color: white;
+}
+
+/* Hide the actual checkbox inside button */
+.recurrence-details .btn-check {
+  position: absolute;
+  clip: rect(0, 0, 0, 0);
+}
+
+/* Radio buttons inline styling */
+.recurrence-details .shiny-options-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.recurrence-details .radio-inline,
+.recurrence-details .checkbox-inline {
+  margin-right: 0;
+}
+
+/* Compact numeric inputs */
+.recurrence-details input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.recurrence-details input[type="number"]::-webkit-inner-spin-button,
+.recurrence-details input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Footer recurrence preview */
+.modal-footer .text-muted.small {
+  font-size: 0.8rem;
+}

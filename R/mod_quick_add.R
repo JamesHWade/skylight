@@ -72,7 +72,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
               format(date, "%A, %B %d")
             )
           ),
-          size = "m",
+          size = "l",
           easyClose = TRUE,
           footer = htmltools::div(
             class = "d-flex justify-content-end gap-2",
@@ -85,9 +85,10 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
             )
           ),
 
-          # Form content
+          # Form content (scrollable for smaller screens)
           htmltools::div(
             class = "quick-add-form",
+            style = "max-height: 70vh; overflow-y: auto;",
 
             # Event title with icon generation
             htmltools::div(

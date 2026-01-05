@@ -895,7 +895,17 @@ chore_form <- function(ns, chore = NULL, members = NULL) {
             "Kitchen" = "kitchen",
             "Bedroom" = "bedroom",
             "Bathroom" = "bathroom",
-            "Outdoor" = "outdoor"
+            "Living Room" = "living_room",
+            "Laundry" = "laundry",
+            "Outdoor/Yard" = "outdoor",
+            "Yard/Garden" = "yard",
+            "Garage" = "garage",
+            "Pets" = "pets",
+            "Car/Vehicle" = "car",
+            "Errands" = "errands",
+            "Meals/Cooking" = "meals",
+            "Organization" = "organization",
+            "Maintenance" = "maintenance"
           ),
           selected = cat_val
         )

@@ -435,9 +435,14 @@ create_chore <- function(title,
   estimated_minutes <- validate_positive_int(estimated_minutes, "estimated_minutes", min = 1, max = 480)
   icon_emoji <- validate_string(icon_emoji, "icon_emoji", max_length = 10)
 
+
   # Validate enums
   frequency <- validate_enum(frequency, "frequency", c("daily", "weekly", "monthly", "once"))
-  category <- validate_enum(category, "category", c("general", "kitchen", "bedroom", "bathroom", "outdoor"))
+  category <- validate_enum(category, "category", c(
+    "general", "kitchen", "bedroom", "bathroom", "outdoor",
+    "laundry", "living_room", "garage", "pets", "yard",
+    "car", "errands", "meals", "organization", "maintenance"
+  ))
 
   # Validate optional fields (allow empty strings, just check length)
   if (!is.null(description) && nchar(trimws(description)) > 0) {

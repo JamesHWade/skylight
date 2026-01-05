@@ -573,6 +573,7 @@ daily_options_ui <- function(ns) {
 
 # Helper: Weekly recurrence options UI
 weekly_options_ui <- function(ns, date) {
+
   # Pre-select the day of the week from the selected date
   default_day <- if (!is.null(date)) {
     tolower(weekdays(date))
@@ -580,25 +581,41 @@ weekly_options_ui <- function(ns, date) {
     NULL
   }
 
-  htmltools::div(
-    class = "weekly-day-picker",
-    htmltools::tags$label(class = "form-label small text-muted", "On these days:"),
-    shiny::checkboxGroupInput(
-      ns("recurrence_days"),
-      NULL,
-      choiceNames = list(
-        htmltools::span("S", class = "day-label"),
-        htmltools::span("M", class = "day-label"),
-        htmltools::span("T", class = "day-label"),
-        htmltools::span("W", class = "day-label"),
-        htmltools::span("T", class = "day-label"),
-        htmltools::span("F", class = "day-label"),
-        htmltools::span("S", class = "day-label")
-      ),
-      choiceValues = c("sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"),
-      selected = default_day,
-      inline = TRUE
-    )
+  # JavaScript to handle visual toggle state
+  toggle_js <- htmltools::HTML(sprintf("
+    $(document).on('change', '#%s input[type=checkbox]', function() {
+      $(this).closest('.checkbox-inline, .form-check').toggleClass('checked', this.checked);
+    });
+    // Initialize on load
+    $(function() {
+      $('#%s input[type=checkbox]:checked').each(function() {
+        $(this).closest('.checkbox-inline, .form-check').addClass('checked');
+      });
+    });
+  ", ns("recurrence_days"), ns("recurrence_days")))
+
+  htmltools::tagList(
+    htmltools::div(
+      class = "weekly-day-picker",
+      htmltools::tags$label(class = "form-label small text-muted", "On these days:"),
+      shiny::checkboxGroupInput(
+        ns("recurrence_days"),
+        NULL,
+        choiceNames = list(
+          htmltools::span("S", class = "day-label"),
+          htmltools::span("M", class = "day-label"),
+          htmltools::span("T", class = "day-label"),
+          htmltools::span("W", class = "day-label"),
+          htmltools::span("T", class = "day-label"),
+          htmltools::span("F", class = "day-label"),
+          htmltools::span("S", class = "day-label")
+        ),
+        choiceValues = c("sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"),
+        selected = default_day,
+        inline = TRUE
+      )
+    ),
+    htmltools::tags$script(toggle_js)
   )
 }
 

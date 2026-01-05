@@ -3143,58 +3143,59 @@ html body .navbar .clock-widget * {
 
 .weekly-day-picker .shiny-options-group {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   justify-content: flex-start;
 }
 
-.weekly-day-picker .checkbox-inline {
+.weekly-day-picker .checkbox-inline,
+.weekly-day-picker .form-check {
   margin: 0 !important;
   padding: 0 !important;
 }
 
-.weekly-day-picker .checkbox-inline label {
+.weekly-day-picker .checkbox-inline label,
+.weekly-day-picker .form-check label {
   margin: 0;
   padding: 0;
   cursor: pointer;
 }
 
-.weekly-day-picker .checkbox-inline input[type="checkbox"] {
+.weekly-day-picker .checkbox-inline input[type="checkbox"],
+.weekly-day-picker .form-check input[type="checkbox"] {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
+  pointer-events: none;
 }
 
-.weekly-day-picker .checkbox-inline .day-label {
+.weekly-day-picker .day-label {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 1px solid var(--bs-primary);
+  border: 2px solid var(--bs-primary);
   color: var(--bs-primary);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
   background-color: transparent;
 }
 
-/* Checked state - using :has() for modern browsers */
-.weekly-day-picker .checkbox-inline label:has(input:checked) .day-label {
+/* Checked state via JS-added class */
+.weekly-day-picker .checkbox-inline.checked .day-label,
+.weekly-day-picker .form-check.checked .day-label {
   background-color: var(--bs-primary);
   color: white;
 }
 
-/* Fallback: style via sibling selector (Shiny structure: label > input + span) */
-.weekly-day-picker .checkbox-inline input[type="checkbox"]:checked ~ .day-label {
+.weekly-day-picker .day-label:hover {
   background-color: var(--bs-primary);
   color: white;
-}
-
-.weekly-day-picker .checkbox-inline .day-label:hover {
-  background-color: color-mix(in srgb, var(--bs-primary) 20%, transparent);
+  opacity: 0.7;
 }
 
 /* Radio buttons inline styling */

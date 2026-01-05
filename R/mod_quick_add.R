@@ -192,8 +192,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
                 htmltools::div(
                   class = "col-6",
                   shiny::conditionalPanel(
-                    condition = sprintf("input['%s'] != 'once'", ns("recurrence_type")),
-                    ns = ns,
+                    condition = sprintf("input.%s != 'once'", ns("recurrence_type")),
                     shiny::numericInput(
                       ns("recurrence_interval"),
                       NULL,
@@ -207,8 +206,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
 
               # Daily options: weekdays only
               shiny::conditionalPanel(
-                condition = sprintf("input['%s'] == 'daily'", ns("recurrence_type")),
-                ns = ns,
+                condition = sprintf("input.%s == 'daily'", ns("recurrence_type")),
                 htmltools::div(
                   class = "mt-2",
                   shiny::checkboxInput(
@@ -221,8 +219,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
 
               # Weekly options: day picker
               shiny::conditionalPanel(
-                condition = sprintf("input['%s'] == 'weekly'", ns("recurrence_type")),
-                ns = ns,
+                condition = sprintf("input.%s == 'weekly'", ns("recurrence_type")),
                 htmltools::div(
                   class = "mt-2",
                   htmltools::tags$label(class = "form-label small", "On these days:"),
@@ -242,8 +239,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
 
               # Monthly options
               shiny::conditionalPanel(
-                condition = sprintf("input['%s'] == 'monthly'", ns("recurrence_type")),
-                ns = ns,
+                condition = sprintf("input.%s == 'monthly'", ns("recurrence_type")),
                 htmltools::div(
                   class = "mt-2",
                   shiny::radioButtons(
@@ -258,8 +254,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
                   ),
                   # Day of month option
                   shiny::conditionalPanel(
-                    condition = sprintf("input['%s'] == 'day_of_month'", ns("monthly_type")),
-                    ns = ns,
+                    condition = sprintf("input.%s == 'day_of_month'", ns("monthly_type")),
                     htmltools::div(
                       class = "d-flex align-items-center gap-2 mt-2",
                       htmltools::span("On day"),
@@ -269,8 +264,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
                   ),
                   # Nth weekday option
                   shiny::conditionalPanel(
-                    condition = sprintf("input['%s'] == 'nth_weekday'", ns("monthly_type")),
-                    ns = ns,
+                    condition = sprintf("input.%s == 'nth_weekday'", ns("monthly_type")),
                     htmltools::div(
                       class = "d-flex align-items-center gap-2 mt-2 flex-wrap",
                       htmltools::span("On the"),
@@ -295,8 +289,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
 
               # End condition (when repeating)
               shiny::conditionalPanel(
-                condition = sprintf("input['%s'] != 'once'", ns("recurrence_type")),
-                ns = ns,
+                condition = sprintf("input.%s != 'once'", ns("recurrence_type")),
                 htmltools::div(
                   class = "mt-3",
                   htmltools::tags$label(class = "form-label small", "Ends"),
@@ -308,8 +301,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
                     inline = TRUE
                   ),
                   shiny::conditionalPanel(
-                    condition = sprintf("input['%s'] == 'after'", ns("end_type")),
-                    ns = ns,
+                    condition = sprintf("input.%s == 'after'", ns("end_type")),
                     htmltools::div(
                       class = "d-flex align-items-center gap-2",
                       shiny::numericInput(ns("end_count"), NULL, value = 10, min = 1, max = 999, width = "80px"),
@@ -317,8 +309,7 @@ mod_quick_add_server <- function(id, calendars, refresh_trigger) {
                     )
                   ),
                   shiny::conditionalPanel(
-                    condition = sprintf("input['%s'] == 'by_date'", ns("end_type")),
-                    ns = ns,
+                    condition = sprintf("input.%s == 'by_date'", ns("end_type")),
                     shiny::dateInput(ns("end_date"), NULL, value = Sys.Date() + 90)
                   )
                 )
